@@ -4,7 +4,7 @@
         branch = master
 [submodule "external/libnegf/origin"]
 	path = external/libnegf/origin
-	url = https://github.com/libnegf/libnegf.git
+	url = https://oauth2:gN5GvLTzSycMyWS-GSTP@gitlab.version.fz-juelich.de/neXGf/libnegf.git
 	branch = master
 [submodule "external/scalapackfx/origin"]
         path = external/scalapackfx/origin
