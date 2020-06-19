@@ -9,7 +9,7 @@
 !> Interface to LIBNEGF for DFTB+
 module negf_int
   use libnegf_vars
-  use libnegf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, unit
+  use libnegf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, units
 #:if WITH_MPI
   use libnegf, only : negf_mpi_init
 #:endif
