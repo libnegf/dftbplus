@@ -2,7 +2,7 @@
 COMPILING STEPS OF dftb+/libNEGF ON JUWELS
 ==========================================
 
-1. git clone https://gitlab.com/neXGf/dftbplus.git
+1. git clone https://gitlab.jsc.fz-juelich.de/nexgf/dftbplus.git
    cd dftbplus
   
 2. git checkout inelastic2
