@@ -33,7 +33,7 @@ module phonons_libnegfint
       & convertHeatConductance, z_CSR, z_DNS, READ_SGF, COMP_SGF, COMPSAVE_SGF, DELTA_SQ, DELTA_W,&
       & DELTA_MINGO, associate_lead_currents, associate_ldos, associate_transmission,&
       & compute_phonon_current, thermal_conductance, create, create_scratch, destroy,&
-      & set_readoldDMsgf, destroy_matrices, destroy_negf, get_params, init_contacts, init_ldos,&
+      & set_readoldDMsgf, destroy_negf, get_params, init_contacts, init_ldos,&
       & init_negf, init_structure, pass_hs, set_bp_dephasing, set_scratch, set_drop,&
       & set_elph_block_dephasing, set_elph_dephasing, set_elph_s_dephasing, set_ldos_indexes,&
       & set_tun_indexes, set_params, writememinfo, writepeakinfo, dns2csr, csr2dns, nzdrop, printcsr
@@ -115,7 +115,7 @@ module phonons_libnegfint
     pNegf=>negf
 
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%globalComm, tIOproc)
+    call negf_mpi_init(negf, energyComm=env%mpi%globalComm)
 #:endif
 
     if (transpar%defined) then
@@ -193,7 +193,7 @@ module phonons_libnegfint
     ! The library writes energies as (E * negf%eneconv)
     parms%eneconv = 1.d0
 
-    parms%isSid = .true.
+    !parms%isSid = .true.
 
     if (allocated(sizes)) then
       deallocate(sizes)
