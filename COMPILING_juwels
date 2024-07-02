@@ -1,0 +1,60 @@
+==========================================
+COMPILING STEPS OF dftb+/libNEGF ON JUWELS
+==========================================
+
+1. git clone https://gitlab.jsc.fz-juelich.de/nexgf/dftbplus.git
+   cd dftbplus
+  
+2. git checkout inelastic2
+
+3. cp config.cmake custom.cmake
+   open custom.cmake and enable WITH_MPI, WITH_TRANSPORT (WITH_GPU_TRANSPORT)
+   
+4. add SCALAPACK_LIBRARY info within WITH_MPI block (needed by scalapackfx):
+
+   set(MKL_LIBDIR "/p/software/juwels/stages/2024/software/imkl/2023.2.0/mkl/2023.2.0/lib/intel64/" CACHE STRING
+        "Directory where to look for mkl libraries"     )
+   set(SCALAPACK_LIBRARY_DIR "${MKL_LIBDIR}"
+    	   CACHE STRING "Directories where Scalapack libraries can be found")
+   set(SCALAPACK_LIBRARY "mkl_scalapack_lp64;mkl_blacs_intelmpi_lp64" CACHE STRING 
+    	   "Scalapack libraries to link")
+
+5. load the following modules: 
+
+   module load CMake/3.26.3
+   module load CUDA/12
+   module load GCC/12.3
+   module load ParaStationMPI/5.9.2-1
+   module load imkl/2023.2.0
+
+6. mkdir build
+   cd build
+
+7. cmake -C../custom.cmake ..
+
+8. The configure automatically downloads github/libnegf
+   cd ../external/libnegf/origin
+   git remote add pecchia https://github.com/pecchia/libnegf.git
+   git fetch pecchia newInelasticCUDA
+   git checkout newInelasticCUDA
+
+9. return on build folder and remove CMakeCache.txt
+   cmake -C ../custom.cmake ..
+   
+10. make -j  (for parallel compilation)
+
+
+Testing
+-------
+1. In order to change test options, e.g.:
+   cmake -B build -DTEST_MPI_PROCS=2 -DTEST_OMP_THREADS=4 .
+
+2. Preallocate a test node
+CLUSTER: $ salloc --time=00:30:00 --nodes=1 --tasks=1 -A slai --partition=devel
+BOOSTER: $ salloc --time=00:30:00 --nodes=1 --tasks=1 -A slai --gres=gpu:1 --partition=develbooster
+
+In order to restrict tests for transport:
+         $ ctest -R transport
+
+
+
