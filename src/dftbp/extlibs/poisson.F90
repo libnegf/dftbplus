@@ -503,16 +503,21 @@ contains
     iErr = 0
     initinfo = .true.
 
+    if (id0) then
+      write(stdOut,*)
+      write(stdOut,*) 'Poisson Initialisation:'
+    end if
+
   #:if WITH_MPI
     call poiss_mpi_init(env%mpi%globalComm)
     call poiss_mpi_split(min(poissoninfo%maxNumNodes, env%mpi%globalComm%size))
     call mpifx_barrier(env%mpi%globalComm, iErr)
   #:endif
 
-    write(stdOut,*)
-    write(stdOut,*) 'Poisson Initialisation:'
-    write(stdOut,'(a,i0,a)') ' Poisson parallelized on ', numprocs, ' node(s)'
-    write(stdOut,*)
+    if (id0) then
+      write(stdOut,'(a,i0,a)') ' Poisson parallelized on ', numprocs, ' node(s)'
+      write(stdOut,*)
+    end if
 
     ! Directory for temporary files
     call set_scratch(poissoninfo%scratch)
@@ -520,6 +525,7 @@ contains
   #:if WITH_TRANSPORT
     if (id0 .and. transpar%ncont > 0) then
       ! only use a scratch folder on the lead node
+      write(stdOut,*) 'Creating scratch folder '//trim(scratchfolder)
       call create_directory_(trim(scratchfolder),iErr)
     end if
   #:endif
@@ -538,6 +544,7 @@ contains
       ! Initialise renormalization factors for grid projection
 
       if (iErr.ne.0) then
+        write(stdOut,*) 'Error: destroy Poisson'
         call poiss_destroy_()
         initinfo = .false.
         return

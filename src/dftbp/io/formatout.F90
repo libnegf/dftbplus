@@ -440,8 +440,8 @@ contains
     character(mc) :: strForm
     integer :: fd, nOrb
 
-    if (withMpi) then
-      call error("Writing of HS not working with MPI yet")
+    if (withMpi .and. env%mpi%globalComm%size > 1) then
+      call error("Writing of HS not working with num MPI procs > 1")
     end if
 
     nOrb = iAtomStart(size(nNeighbourSK) + 1) - 1
@@ -505,8 +505,8 @@ contains
     integer :: fd, nOrb, nKPoint
     integer :: iK
 
-    if (withMpi) then
-      call error("Writing of HS not working with MPI yet")
+    if (withMpi .and. env%mpi%globalComm%size > 1) then
+      call error("Writing of HS not working with num MPI procs > 1")
     end if
 
     nOrb = iAtomStart(size(nNeighbourSK) + 1) - 1

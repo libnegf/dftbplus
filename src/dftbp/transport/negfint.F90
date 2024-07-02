@@ -122,7 +122,6 @@ contains
     ! local variables
     real(dp), allocatable :: pot(:), eFermi(:)
     integer :: i, l, ncont, nldos
-    integer, allocatable :: sizes(:)
     type(lnParams) :: params
 
 #:if WITH_MPI
@@ -223,6 +222,8 @@ contains
     ! Fermi level is given by the contacts. If no contacts => no transport,
     ! Then Fermi is defined by the Green solver
     if (transpar%defined) then
+      allocate(pot(ncont))
+      allocate(eFermi(ncont))
       pot = transpar%contacts(1:ncont)%potential
       eFermi = transpar%contacts(1:ncont)%eFermi(1)
       do i = 1,ncont
@@ -257,6 +258,7 @@ contains
       enddo
 
       deallocate(pot)
+      deallocate(eFermi)
 
     else
       params%mu(1) = greendens%oneFermi(1)
@@ -368,10 +370,6 @@ contains
     ! Energy conversion only affects output units.
     ! The library writes energies as (E * negf%eneconv)
     params%eneconv = Hartree__eV
-
-    if (allocated(sizes)) then
-      deallocate(sizes)
-    end if
 
     call set_params(this%negf,params)
 

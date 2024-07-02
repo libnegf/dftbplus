@@ -961,7 +961,8 @@ contains
         if (this%tWriteRealHS .or. this%tWriteHS&
             & .and. any(this%electronicSolver%iSolver&
             & == [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
-            & electronicSolverTypes%relativelyrobust, electronicSolverTypes%magma_gvd])) then
+            & electronicSolverTypes%relativelyrobust, electronicSolverTypes%magma_gvd,&
+            & electronicSolverTypes%GF])) then
           call writeHSAndStop(env, this%tWriteHS, this%tWriteRealHS, this%tRealHS,&
               & this%ints%overlap, this%neighbourList, this%nNeighbourSK,&
               & this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell, this%kPoint,&
