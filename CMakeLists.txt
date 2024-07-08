@@ -206,8 +206,8 @@ if(WITH_MBD)
 endif()
 
 if(WITH_TRANSPORT)
-  set(LIBNEGF_GIT_REPOSITORY "https://github.com/pecchia/libnegf.git")
-  set(LIBNEGF_GIT_TAG "45867e119165df071c20bbeac2f89f1dc6101780")  # do not change manually!
+  set(LIBNEGF_GIT_REPOSITORY "https://gitlab.jsc.fz-juelich.de/nexgf/libnegf.git")
+  set(LIBNEGF_GIT_TAG "fe9f8eddc28e4f87f588d5ccc1564c6d3cdc4512")  # do not change manually!
   dftbp_config_hybrid_dependency(Negf Negf::Negf "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/libnegf "${exclude}" "${LIBNEGF_GIT_REPOSITORY}" "${LIBNEGF_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES negf)
@@ -216,7 +216,7 @@ add_subdirectory(external/mudpack)
 
 if(WITH_TBLITE OR WITH_SDFTD3)
   set(MCTC_LIB_GIT_REPOSITORY "https://github.com/grimme-lab/mctc-lib.git")
-  set(MCTC_LIB_GIT_TAG "3d0e921085eb6ca535dfceec876bc99baf52f05d")  # do not change manually!
+  set(MCTC_LIB_GIT_TAG "1f690009020fb5f196c1dc359056741738416db6")  # do not change manually!
   dftbp_config_hybrid_dependency(mctc-lib mctc-lib::mctc-lib "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/mctc-lib "${exclude}" "${MCTC_LIB_GIT_REPOSITORY}" "${MCTC_LIB_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mctc-lib)
@@ -256,7 +256,7 @@ if(WITH_TBLITE)
 
   if(INCLUDE_INDIRECT_DEPS)
     set(DFTD4_GIT_REPOSITORY "https://github.com/dftd4/dftd4.git")
-    set(DFTD4_GIT_TAG "f572723f5a5cb8243ea88b0253e182088311c6f3")  # do not change manually!
+    set(DFTD4_GIT_TAG "b1faf68231d8b0fd44cf0701e9f27c8092bd7926")  # do not change manually!
     dftbp_config_hybrid_dependency(dftd4 dftd4::dftd4 "${HYBRID_CONFIG_METHODS}" "QUIET"
       external/dftd4 "${exclude}" "${DFTD4_GIT_REPOSITORY}" "${DFTD4_GIT_TAG}")
     #list(APPEND PKG_CONFIG_REQUIRES dftd4)
