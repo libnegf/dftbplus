@@ -298,11 +298,7 @@ contains
         params%readOldDM_SGFs = COMPSAVE_SGF
       end if
 
-      if(any(params%kbT_dm > 0) .and. greendens%nPoles == 0) then
-        call error("Number of Poles = 0 but T > 0")
-      else
-         params%n_poles = greendens%nPoles
-      end if
+      params%n_poles = greendens%nPoles
       if(all(params%kbT_dm.eq.0)) then
         params%n_poles = 0
       end if
