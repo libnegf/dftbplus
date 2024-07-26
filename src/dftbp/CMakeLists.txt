@@ -128,7 +128,7 @@ endif()
 
 if(WITH_MPI)
   target_link_libraries(dftbplus PUBLIC MPI::MPI_Fortran)
-  target_link_libraries(dftbplus PUBLIC MpiFx::MpiFx ScalapackFx::ScalapackFx)
+  target_link_libraries(dftbplus PUBLIC MpiFx::MpiFx)
 endif()
 
 # OpenMP dependency must be public in order to forward eventual linker flags

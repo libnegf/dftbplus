@@ -12,7 +12,6 @@
 module dftbp_common_blacsenv
   use dftbp_common_mpienv, only : TMpiEnv
   use dftbp_common_status, only : TStatus
-  use dftbp_extlibs_scalapackfx, only : blacsgrid
   use dftbp_io_message, only : error
   implicit none
 
@@ -23,18 +22,7 @@ module dftbp_common_blacsenv
   !> Contains various BLACS related settings
   type :: TBlacsEnv
 
-    !> Group grid for (nOrb, nOrb) shaped square matrices
-    !> Note: the grid always contains all processes in the group
-    type(blacsgrid) :: orbitalGrid
-
     !> Group grid for (nAtom, nAtom) shaped square matrices (nAtom) shaped vectors
-    !> Note: Some processes in the group may be outside of this grid!
-    type(blacsgrid) :: atomGrid
-
-    !> Group grid for (nOrb, nOrb) shaped square matrices ordered with entire rows on same processor
-    !> Note: the grid always contains all processes in the group
-    type(blacsgrid) :: rowOrbitalGrid
-
     !> Row block size for square matrices
     integer :: rowBlockSize
 
@@ -91,11 +79,11 @@ contains
       @:RAISE_ERROR(errStatus, -1, trim(buffer))
     end if
     call getGridMap(myMpiEnv%groupMembersWorld, nProcRow, nProcCol, gridMap)
-    call this%orbitalGrid%initmappedgrids(gridMap)
+    error stop "this%orbitalGrid%initmappedgrids(gridMap)"
 
     ! rectangular grid for the rowBlock
     call getGridMap(myMpiEnv%groupMembersWorld, 1, nProcRow * nProcCol, gridMap)
-    call this%rowOrbitalGrid%initmappedgrids(gridMap)
+    error stop "call this%rowOrbitalGrid%initmappedgrids(gridMap)"
 
     ! Create atom grid for each processor group
     maxProcRow = (nAtom - 1) / rowBlock + 1
@@ -104,7 +92,7 @@ contains
     nProcCol = min(nProcCol, maxProcColMax)
 
     call getGridMap(myMpiEnv%groupMembersWorld, nProcRow, nProcCol, gridMap)
-    call this%atomGrid%initmappedgrids(gridMap)
+    error stop "call this%atomGrid%initmappedgrids(gridMap)"
 
     this%rowBlockSize = rowBlock
     this%columnBlockSize = colBlock
@@ -119,9 +107,9 @@ contains
     !> Initialized instance.
     type(TBlacsEnv), intent(inout) :: this
 
-    call this%orbitalGrid%destruct()
-    call this%atomGrid%destruct()
-    call this%rowOrbitalGrid%destruct()
+    error stop "call this%orbitalGrid%destruct()"
+    error stop "call this%atomGrid%destruct()"
+    error stop "call this%rowOrbitalGrid%destruct()"
 
   end subroutine TBlacsEnv_final
 

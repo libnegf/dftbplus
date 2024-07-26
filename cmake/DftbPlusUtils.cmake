@@ -79,7 +79,7 @@ function (dftbp_add_fypp_defines fyppflags)
   endif()
 
   if(WITH_MPI)
-    list(APPEND _fyppflags -DWITH_MPI -DWITH_SCALAPACK)
+    list(APPEND _fyppflags -DWITH_MPI)
   endif()
 
   if(WITH_SOCKETS)

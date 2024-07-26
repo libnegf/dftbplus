@@ -186,14 +186,14 @@ if(WITH_MPI)
     external/mpifx "${exclude}" "${MPIFX_GIT_REPOSITORY}" "${MPIFX_GIT_TAG}")
 
   # Find ScaLAPACK to make sure, all components (e.g. ScalapackFx, MBD) use the same ScaLAPACK
-  find_package(CustomScalapack REQUIRED)
+  #find_package(CustomScalapack REQUIRED)
 
-  set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
-  set(SCALAPACKFX_GIT_TAG "7b98ba99d595a0760da12895b1a63959e881182c")  # do not change manually!
-  dftbp_config_hybrid_dependency(ScalapackFx ScalapackFx::ScalapackFx "${HYBRID_CONFIG_METHODS}"
-    "QUIET" external/scalapackfx "${exclude}" "${SCALAPACKFX_GIT_REPOSITORY}"
-    "${SCALAPACKFX_GIT_TAG}")
-  list(APPEND PKG_CONFIG_REQUIRES mpifx scalapackfx)
+  #set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
+  #set(SCALAPACKFX_GIT_TAG "7b98ba99d595a0760da12895b1a63959e881182c")  # do not change manually!
+  #dftbp_config_hybrid_dependency(ScalapackFx ScalapackFx::ScalapackFx "${HYBRID_CONFIG_METHODS}"
+  #  "QUIET" external/scalapackfx "${exclude}" "${SCALAPACKFX_GIT_REPOSITORY}"
+  #  "${SCALAPACKFX_GIT_TAG}")
+  list(APPEND PKG_CONFIG_REQUIRES mpifx)
 endif()
 
 # MBD must be invoked *after* Scalapack has been found by ScalapackFx
