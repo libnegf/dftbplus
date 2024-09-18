@@ -1783,6 +1783,7 @@ contains
         params%mu(1:ncont) = mu(1:ncont,iS)
 
         call set_params(this%negf, params)
+        call this%negf%timers%reset()
 
         call foldToCSR(this%csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor,&
               & nNeighbor, img2CentCell, iCellVec, cellVec, orb)
@@ -1818,7 +1819,34 @@ contains
         call add_partial_results(currPMat, currMat, currSKRes, iKS, nKS)
         call add_partial_results(ldosPMat, ldosMat, ldosSKRes, iKS, nKS)
 #:endif
+        block
+          integer :: io
+          character(len=128) :: timing_filename
+          integer :: mpi_rank
+          integer :: num_e_points
 
+          mpi_rank = env%mpi%globalComm%rank
+          num_e_points = size(this%negf%en_grid)
+          write(timing_filename, "(A,I1,A)") "libnegf-timing-rank-", mpi_rank, ".txt"
+          if(iKS == 1) then
+            open(newunit=io, file=timing_filename, action="write")
+          else
+            open(newunit=io, file=timing_filename, action="write", position="append")
+          end if
+          write(io, "(I3,A,I2,A,I2,A,I2,A,I3,A,I9,A,I10,A,I9,A,I10,A,I9,A,I10)") &
+            mpi_rank, " ", &
+            iKS, " ", &
+            iK, " ", &
+            iS, " ", &
+            num_e_points, " ", &
+            this%negf%timers%compute_current_wc / 1000 / 1000, " ", &
+            this%negf%timers%compute_current_cpu / 1000 / 1000, " ", &
+            this%negf%timers%contact_self_energies_wc / 1000 / 1000, " ", &
+            this%negf%timers%contact_self_energies_cpu / 1000 / 1000, " ", &
+            this%negf%timers%transmissions_and_dos_wc / 1000 / 1000, " ", &
+            this%negf%timers%transmissions_and_dos_cpu / 1000 / 1000
+          close(io)
+        end block
       end do
 
 #:if WITH_MPI
