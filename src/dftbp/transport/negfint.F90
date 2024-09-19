@@ -1841,7 +1841,7 @@ contains
           else
             open(newunit=io, file=timing_filename, action="write", position="append")
           end if
-          write(io, "(I3,A,I2,A,I2,A,I2,A,I3,A,I9,A,I10,A,I9,A,I10,A,I9,A,I10,A,I9,A,I10,A,I9,A,I10)") &
+          write(io, "(G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0)") &
             mpi_rank, ",", &
             iKS, ",", &
             iK, ",", &
