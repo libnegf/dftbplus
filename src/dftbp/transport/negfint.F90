@@ -1834,14 +1834,16 @@ contains
                              &compute_current_wc,compute_current_cpu,&
                              &contact_self_energies_wc,contact_self_energies_cpu,&
                              &transmissions_and_dos_wc,transmissions_and_dos_cpu,&
-                             &calculate_single_transmission_2_contacts_wc,&
-                             &calculate_single_transmission_2_contacts_cpu,&
                              &assemble_Grm_wc,&
-                             &assemble_Grm_cpu"
+                             &assemble_Grm_cpu,&
+                             &build_ESH_wc,&
+                             &build_ESH_cpu,&
+                             &calculate_single_transmission_wc,&
+                             &calculate_single_transmission_cpu"
           else
             open(newunit=io, file=timing_filename, action="write", position="append")
           end if
-          write(io, "(G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0)") &
+          write(io, "(G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0,A,G0)") &
             mpi_rank, ",", &
             iKS, ",", &
             iK, ",", &
@@ -1853,10 +1855,12 @@ contains
             this%negf%timers%contact_self_energies_cpu / 1000 / 1000, ",", &
             this%negf%timers%transmissions_and_dos_wc / 1000 / 1000, ",", &
             this%negf%timers%transmissions_and_dos_cpu / 1000 / 1000, ",", &
-            this%negf%timers%calculate_single_transmission_wc / 1000 / 1000, ",", &
-            this%negf%timers%calculate_single_transmission_cpu / 1000 / 1000, ",", &
             this%negf%timers%assemble_green_wc / 1000 / 1000, ",", &
-            this%negf%timers%assemble_green_cpu / 1000 / 1000
+            this%negf%timers%assemble_green_cpu / 1000 / 1000, ",", &
+            this%negf%timers%build_esh_wc / 1000 / 1000, ",", &
+            this%negf%timers%build_esh_cpu / 1000 / 1000, ",", &
+            this%negf%timers%calculate_single_transmission_wc / 1000 / 1000, ",", &
+            this%negf%timers%calculate_single_transmission_cpu / 1000 / 1000
           close(io)
         end block
       end do
