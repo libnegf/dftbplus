@@ -1833,11 +1833,15 @@ contains
             write(io, '(A)') "mpi-rank,iKS,iK,iS,num-e-points,&
                              &compute_current_wc,compute_current_cpu,&
                              &contact_self_energies_wc,contact_self_energies_cpu,&
-                             &transmissions_and_dos_wc,transmissions_and_dos_cpu"
+                             &transmissions_and_dos_wc,transmissions_and_dos_cpu,&
+                             &calculate_single_transmission_2_contacts_wc,&
+                             &calculate_single_transmission_2_contacts_cpu,&
+                             &assemble_Grm_wc,&
+                             &assemble_Grm_cpu"
           else
             open(newunit=io, file=timing_filename, action="write", position="append")
           end if
-          write(io, "(I3,A,I2,A,I2,A,I2,A,I3,A,I9,A,I10,A,I9,A,I10,A,I9,A,I10)") &
+          write(io, "(I3,A,I2,A,I2,A,I2,A,I3,A,I9,A,I10,A,I9,A,I10,A,I9,A,I10,A,I9,A,I10,A,I9,A,I10)") &
             mpi_rank, ",", &
             iKS, ",", &
             iK, ",", &
@@ -1848,7 +1852,11 @@ contains
             this%negf%timers%contact_self_energies_wc / 1000 / 1000, ",", &
             this%negf%timers%contact_self_energies_cpu / 1000 / 1000, ",", &
             this%negf%timers%transmissions_and_dos_wc / 1000 / 1000, ",", &
-            this%negf%timers%transmissions_and_dos_cpu / 1000 / 1000
+            this%negf%timers%transmissions_and_dos_cpu / 1000 / 1000, ",", &
+            this%negf%timers%calculate_single_transmission_wc / 1000 / 1000, ",", &
+            this%negf%timers%calculate_single_transmission_cpu / 1000 / 1000, ",", &
+            this%negf%timers%assemble_green_wc / 1000 / 1000, ",", &
+            this%negf%timers%assemble_green_cpu / 1000 / 1000
           close(io)
         end block
       end do
