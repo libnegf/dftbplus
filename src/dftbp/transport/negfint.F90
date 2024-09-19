@@ -1827,7 +1827,7 @@ contains
 
           mpi_rank = env%mpi%globalComm%rank
           num_e_points = size(this%negf%en_grid)
-          write(timing_filename, "(A,I1,A)") "libnegf-timing-rank-", mpi_rank, ".txt"
+          write(timing_filename, "(A,G0,A)") "libnegf-timing-rank-", mpi_rank, ".txt"
           if(iKS == 1) then
             open(newunit=io, file=timing_filename, action="write")
             write(io, '(A)') "mpi-rank,iKS,iK,iS,num-e-points,&
