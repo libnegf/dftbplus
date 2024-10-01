@@ -1783,7 +1783,6 @@ contains
         params%mu(1:ncont) = mu(1:ncont,iS)
 
         call set_params(this%negf, params)
-        call this%negf%timers%reset()
 
         call foldToCSR(this%csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor,&
               & nNeighbor, img2CentCell, iCellVec, cellVec, orb)
@@ -1824,6 +1823,9 @@ contains
           character(len=128) :: timing_filename
           integer :: mpi_rank
           integer :: num_e_points
+          ! microseconds-to-nanoseconds multiplier
+          integer :: ms2ns
+          ms2ns = 1000 * 1000
 
           mpi_rank = env%mpi%globalComm%rank
           num_e_points = size(this%negf%en_grid)
@@ -1834,10 +1836,14 @@ contains
                              &compute_current_wc,compute_current_cpu,&
                              &contact_self_energies_wc,contact_self_energies_cpu,&
                              &transmissions_and_dos_wc,transmissions_and_dos_cpu,&
+                             &build_ESH_wc,&
+                             &build_ESH_cpu,&
                              &assemble_green_wc,&
                              &assemble_green_cpu,&
                              &calculate_single_transmission_wc,&
                              &calculate_single_transmission_cpu,&
+                             &destroy_matrices_wc,&
+                             &destroy_matrices_cpu,&
                              &calculate_dos_wc,&
                              &calculate_dos_cpu"
           else
@@ -1849,23 +1855,29 @@ contains
           write(io, "(G0,A)", advance="no") iS, ","
           write(io, "(G0,A)", advance="no") num_e_points, ","
           write(io, "(G0,A,G0,A)", advance="no") &
-            & this%negf%timers%compute_current_wc / 1000 / 1000, ",", &
-            & this%negf%timers%compute_current_cpu / 1000 / 1000, ","
+            & this%negf%timers%compute_current%wc_time / ms2ns, ",", &
+            & this%negf%timers%compute_current%cpu_time / ms2ns, ","
           write(io, "(G0,A,G0,A)", advance="no") &
-            & this%negf%timers%contact_self_energies_wc / 1000 / 1000, ",", &
-            & this%negf%timers%contact_self_energies_cpu / 1000 / 1000, ","
+            & this%negf%timers%contact_self_energies%wc_time / ms2ns, ",", &
+            & this%negf%timers%contact_self_energies%cpu_time / ms2ns, ","
           write(io, "(G0,A,G0,A)", advance="no") &
-            & this%negf%timers%transmissions_and_dos_wc / 1000 / 1000, ",", &
-            & this%negf%timers%transmissions_and_dos_cpu / 1000 / 1000, ","
+            & this%negf%timers%transmissions_and_dos%wc_time / ms2ns, ",", &
+            & this%negf%timers%transmissions_and_dos%cpu_time / ms2ns, ","
           write(io, "(G0,A,G0,A)", advance="no") &
-            & this%negf%timers%assemble_green_wc / 1000 / 1000, ",", &
-            & this%negf%timers%assemble_green_cpu / 1000 / 1000, ","
+            & this%negf%timers%build_ESH%wc_time / ms2ns, ",", &
+            & this%negf%timers%build_ESH%cpu_time / ms2ns, ","
           write(io, "(G0,A,G0,A)", advance="no") &
-            & this%negf%timers%calculate_single_transmission_wc / 1000 / 1000, ",", &
-            & this%negf%timers%calculate_single_transmission_cpu / 1000 / 1000, ","
+            & this%negf%timers%assemble_green%wc_time / ms2ns, ",", &
+            & this%negf%timers%assemble_green%cpu_time / ms2ns, ","
           write(io, "(G0,A,G0,A)", advance="no") &
-            & this%negf%timers%calculate_dos_wc / 1000 / 1000, ",", &
-            & this%negf%timers%calculate_dos_cpu / 1000 / 1000, ","
+            & this%negf%timers%calculate_single_transmission%wc_time / ms2ns, ",", &
+            & this%negf%timers%calculate_single_transmission%cpu_time / ms2ns, ","
+          write(io, "(G0,A,G0,A)", advance="no") &
+            & this%negf%timers%destroy_matrices%wc_time / ms2ns, ",", &
+            & this%negf%timers%destroy_matrices%cpu_time / ms2ns, ","
+          write(io, "(G0,A,G0,A)", advance="no") &
+            & this%negf%timers%calculate_dos%wc_time / ms2ns, ",", &
+            & this%negf%timers%calculate_dos%cpu_time / ms2ns, ","
           write(io, *) ""
           close(io)
         end block
