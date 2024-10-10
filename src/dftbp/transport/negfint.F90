@@ -1775,6 +1775,8 @@ contains
       call get_params(this%negf, params)
 
       do iKS = 1, nKS
+        call this%negf%timers%k_loop%start()
+
         iK = groupKS(1, iKS)
         iS = groupKS(2, iKS)
 
@@ -1818,6 +1820,8 @@ contains
         call add_partial_results(currPMat, currMat, currSKRes, iKS, nKS)
         call add_partial_results(ldosPMat, ldosMat, ldosSKRes, iKS, nKS)
 #:endif
+        call this%negf%timers%k_loop%stop()
+
         block
           integer :: io
           character(len=128) :: timing_filename
@@ -1833,9 +1837,15 @@ contains
           if(iKS == 1) then
             open(newunit=io, file=timing_filename, action="write")
             write(io, '(A)') "mpi-rank,iKS,iK,iS,num-e-points,&
+                             &k_loop_wc,&
+                             &k_loop_cpu,&
                              &compute_current_wc,compute_current_cpu,&
+                             &e_loop_wc,&
+                             &e_loop_cpu,&
                              &contact_self_energies_wc,contact_self_energies_cpu,&
-                             &transmissions_and_dos_wc,transmissions_and_dos_cpu,&
+                             &calculate_transmissions_wc,calculate_transmissions_cpu,&
+                             &e_loop_destroy_wc,&
+                             &e_loop_destroy_cpu,&
                              &build_ESH_wc,&
                              &build_ESH_cpu,&
                              &assemble_green_wc,&
@@ -1855,14 +1865,23 @@ contains
           write(io, "(G0,A)", advance="no") iS, ","
           write(io, "(G0,A)", advance="no") num_e_points, ","
           write(io, "(G0,A,G0,A)", advance="no") &
+            & this%negf%timers%k_loop%wc_time / ms2ns, ",", &
+            & this%negf%timers%k_loop%cpu_time / ms2ns, ","
+          write(io, "(G0,A,G0,A)", advance="no") &
             & this%negf%timers%compute_current%wc_time / ms2ns, ",", &
             & this%negf%timers%compute_current%cpu_time / ms2ns, ","
+          write(io, "(G0,A,G0,A)", advance="no") &
+            & this%negf%timers%e_loop%wc_time / ms2ns, ",", &
+            & this%negf%timers%e_loop%cpu_time / ms2ns, ","
           write(io, "(G0,A,G0,A)", advance="no") &
             & this%negf%timers%contact_self_energies%wc_time / ms2ns, ",", &
             & this%negf%timers%contact_self_energies%cpu_time / ms2ns, ","
           write(io, "(G0,A,G0,A)", advance="no") &
-            & this%negf%timers%transmissions_and_dos%wc_time / ms2ns, ",", &
-            & this%negf%timers%transmissions_and_dos%cpu_time / ms2ns, ","
+            & this%negf%timers%calculate_transmissions%wc_time / ms2ns, ",", &
+            & this%negf%timers%calculate_transmissions%cpu_time / ms2ns, ","
+          write(io, "(G0,A,G0,A)", advance="no") &
+            & this%negf%timers%e_loop_destroy%wc_time / ms2ns, ",", &
+            & this%negf%timers%e_loop_destroy%cpu_time / ms2ns, ","
           write(io, "(G0,A,G0,A)", advance="no") &
             & this%negf%timers%build_ESH%wc_time / ms2ns, ",", &
             & this%negf%timers%build_ESH%cpu_time / ms2ns, ","
