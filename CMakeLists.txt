@@ -207,7 +207,7 @@ endif()
 
 if(WITH_TRANSPORT)
   set(LIBNEGF_GIT_REPOSITORY "https://gitlab.jsc.fz-juelich.de/nexgf/libnegf.git")
-  set(LIBNEGF_GIT_TAG "fe9f8eddc28e4f87f588d5ccc1564c6d3cdc4512")  # do not change manually!
+  set(LIBNEGF_GIT_TAG "0a9743eba67115722a1495df572098c47b8d3a44")  # do not change manually!
   dftbp_config_hybrid_dependency(Negf Negf::Negf "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/libnegf "${exclude}" "${LIBNEGF_GIT_REPOSITORY}" "${LIBNEGF_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES negf)
