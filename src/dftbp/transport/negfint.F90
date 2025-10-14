@@ -1370,10 +1370,15 @@ contains
      #:if WITH_MPI
       ! In place reduce of the density matrix along energy (groupComm)
       ! and k-points (interGroupComm)
-      do iS = 1, nSpin
-        call mpifx_allreduceip(env%mpi%groupComm, rho(:,iS), MPI_SUM)
-      end do
-      call mpifx_allreduceip(env%mpi%interGroupComm, rho, MPI_SUM)
+      !call mpifx_barrier(env%mpi%groupComm)
+      !do iS = 1, nSpin
+      !  if (env%mpi%nGroup == 1) then
+      !     print*,'DEBUG: reduce rho(:,',iS,') over E- Communicator'
+      !  end if
+      !  call mpifx_allreduceip(env%mpi%groupComm, rho(:,iS), MPI_SUM)
+      !end do
+      !call mpifx_barrier(env%mpi%interGroupComm)
+      !call mpifx_allreduceip(env%mpi%interGroupComm, rho, MPI_SUM)
      #:endif
 
       write(stdOut,'(80("="))')
@@ -1585,7 +1590,8 @@ contains
 
     ! In place all-reduce of the energy-weighted density matrix
 #:if WITH_MPI
-    call mpifx_allreduceip(env%mpi%groupComm, rhoE, MPI_SUM)
+    !Note: moved in libNEGF, but needs to be spin-dependent 
+    !call mpifx_allreduceip(env%mpi%groupComm, rhoE, MPI_SUM)
     call mpifx_allreduceip(env%mpi%interGroupComm, rhoE, MPI_SUM)
 #:endif
 

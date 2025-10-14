@@ -3,7 +3,7 @@
 	url = https://github.com/dftbplus/mpifx.git
 [submodule "external/libnegf/origin"]
 	path = external/libnegf/origin
-	url = https://github.com/libnegf/libnegf.git
+	url = https://gitlab.jsc.fz-juelich.de/neXGf/libnegf.git
 [submodule "external/scalapackfx/origin"]
 	path = external/scalapackfx/origin
 	url = https://github.com/dftbplus/scalapackfx.git
