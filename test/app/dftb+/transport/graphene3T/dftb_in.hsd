@@ -248,8 +248,8 @@ Hamiltonian = DFTB {
     Verbosity = 51
     RecomputeAfterDensity = No
     MaxPoissonIterations = 60
-    OverrideBulkBC = none {}
-    Gate = none {}
+    #OverrideBulkBC = none {}
+    #Gate = none {}
   }
 
   ElectricField = {}

@@ -25,7 +25,7 @@ module dftbp_transport_negfint
       & set_elph_s_dephasing, set_ldos_indexes, set_params, set_scratch, writememinfo, create_dm,&
       & writepeakinfo, printcsr, set_elph_polaroptical, set_elph_nonpolaroptical, set_kpoints, &
       & init_basis, compute_layer_current, compute_meir_wingreen, set_scba_tolerances, get_dm,&
-      & copy_dm
+      & copy_dm, destroy_dm
   use dftbp_io_formatout, only : writeXYZFormat
   use dftbp_io_message, only : error, warning
   use dftbp_math_eigensolver, only : heev
@@ -1017,6 +1017,8 @@ contains
 
     call associate_ldos(negf, ledos)
 
+    call destroy_HS(negf)
+
   end subroutine negf_ldos
 
 
@@ -1158,6 +1160,8 @@ contains
       call error('Internal error: currVec not associated')
     end if
 
+    call destroy_HS(negf)
+
   end subroutine negf_current
 
   !> Interface subroutine to call calculation of currents
@@ -1269,7 +1273,7 @@ contains
     !> Electron entropy
     real(dp), intent(out) :: TS(:)
 
-    integer :: ncont, nSpin, nKS, iK, iS, iKS
+    integer :: ncont, nSpin, nK, nKS, iK, iS, iKS
     type(z_CSR), pointer :: pCsrHam, pCsrOver
     type(lnParams) :: params
 
@@ -1290,14 +1294,16 @@ contains
     ! We need this now for different fermi levels in colinear spin
     ! Note: the spin polirized does not work with
     ! built-in potentials (the unpolarized does) in the poisson
+    ! nKS is the local number of K and S
     nKS = size(groupKS, dim=2)
+    ! nK, nS are global number of K and S
+    nK = size(kPoints, dim=2)
     nSpin = size(ham, dim=2)
     rho = 0.0_dp
     ncont = size(mu,1)
 
 #:if WITH_MPI
-    call mpifx_barrier(env%mpi%groupComm)
-    call mpifx_barrier(env%mpi%interGroupComm)
+    call mpifx_barrier(env%mpi%globalComm)
 #:endif
 
     if (this%tInelastic) then
@@ -1368,17 +1374,7 @@ contains
       end do
 
      #:if WITH_MPI
-      ! In place reduce of the density matrix along energy (groupComm)
-      ! and k-points (interGroupComm)
-      !call mpifx_barrier(env%mpi%groupComm)
-      !do iS = 1, nSpin
-      !  if (env%mpi%nGroup == 1) then
-      !     print*,'DEBUG: reduce rho(:,',iS,') over E- Communicator'
-      !  end if
-      !  call mpifx_allreduceip(env%mpi%groupComm, rho(:,iS), MPI_SUM)
-      !end do
-      !call mpifx_barrier(env%mpi%interGroupComm)
-      !call mpifx_allreduceip(env%mpi%interGroupComm, rho, MPI_SUM)
+      call mpifx_allreduceip(env%mpi%interGroupComm, rho, MPI_SUM)
      #:endif
 
       write(stdOut,'(80("="))')
@@ -1388,8 +1384,6 @@ contains
     ! ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     subroutine calc_density_inel()
 
-      !type(z_CSR), target :: csrDens
-      !type(z_CSR), pointer :: pcsrDens
       type(TMatrixArray) :: csrDens(nKS)
 
       call get_params(this%negf, params)
@@ -1400,10 +1394,6 @@ contains
       if (nSpin == 2) then
         call error('Collinear spin not supported with inelastic scattering yet')
       end if
-
-      !if (nKS > 1) then
-      !  call error('Inelastic DM currently works with just one k-point')
-      !end if
 
       write(stdOut, *)
       write(stdOut, '(80("="))')
@@ -1429,14 +1419,11 @@ contains
         call foldToCSR(this%csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
               & img2CentCell, iCellVec, cellVec, orb)
 
-        call copy_HS(this%negf, this%csrHam, this%csrOver, iKS)
-        
-        allocate(csrDens(iKS)%Mat)
-        call pass_DM(this%negf, rho=csrDens(iKS)%Mat, iKS=iKS)
-      end do
+        call copy_HS(this%negf, this%csrHam, this%csrOver, iKS, iS)
 
-      !pcsrDens => csrDens
-      !call pass_DM(this%negf,rho=pcsrDens)
+        allocate(csrDens(iKS)%Mat)
+        call pass_DM(this%negf, rho=csrDens(iKS)%Mat, iKS=iKS, iS=iS)
+      end do
 
       call compute_density_dft(this%negf)
 
@@ -1444,18 +1431,16 @@ contains
         iK = groupKS(1, iKS)
         iS = groupKS(2, iKS)
 
-        call unfoldFromCSR(rho(:,1), csrDens(iKS)%Mat, kPoints(:,iK), kWeights(iK), iAtomStart, &
+        call unfoldFromCSR(rho(:,iS), csrDens(iKS)%Mat, kPoints(:,iK), kWeights(iK), iAtomStart, &
                      & iPair, iNeighbor, nNeighbor, img2CentCell, iCellVec, cellVec, orb)
-     
+
         call destruct(csrDens(iKS)%Mat)
       end do
-     
+
+      call destroy_HS(this%negf)
+      call destroy_DM(this%negf)
+
      #:if WITH_MPI
-      ! In place reduce of the density matrix along energy (groupComm)
-      ! and k-points (interGroupComm)
-      do iS = 1, nSpin
-        call mpifx_allreduceip(env%mpi%groupComm, rho(:,iS), MPI_SUM)
-      end do
       call mpifx_allreduceip(env%mpi%interGroupComm, rho, MPI_SUM)
      #:endif
 
@@ -1571,8 +1556,6 @@ contains
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
 
-      write(stdOut,*) 'k-point',iK,'Spin',iS
-
       call foldToCSR(this%csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor,&
           & nNeighbor, img2CentCell, iCellVec, cellVec, orb)
       call foldToCSR(this%csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
@@ -1590,8 +1573,6 @@ contains
 
     ! In place all-reduce of the energy-weighted density matrix
 #:if WITH_MPI
-    !Note: moved in libNEGF, but needs to be spin-dependent 
-    !call mpifx_allreduceip(env%mpi%groupComm, rhoE, MPI_SUM)
     call mpifx_allreduceip(env%mpi%interGroupComm, rhoE, MPI_SUM)
 #:endif
 
@@ -1716,8 +1697,7 @@ contains
     nTotKS = nS * size(kpoints, dim=2)
     ncont = size(mu,1)
 #:if WITH_MPI
-    call mpifx_barrier(env%mpi%groupComm)
-    call mpifx_barrier(env%mpi%interGroupComm)
+    call mpifx_barrier(env%mpi%globalComm)
 #:endif
 
     if (this%tInelastic .or. this%tLayerCurrents .or. this%tMeirWingreen) then
@@ -1869,6 +1849,7 @@ contains
       params%mu(1:ncont) = mu(1:ncont,1)
       call set_params(this%negf, params)
       call destroy_HS(this%negf)
+
       call create_HS(this%negf, nKS)
 
       do iKS = 1, nKS
@@ -1881,7 +1862,7 @@ contains
         call foldToCSR(this%csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
               & img2CentCell, iCellVec, cellVec, orb)
 
-        call copy_HS(this%negf, this%csrHam, this%csrOver, iKS)
+        call copy_HS(this%negf, this%csrHam, this%csrOver, iKS, iS)
       end do
 
       call negf_current_inel(this%negf, this%tLayerCurrents, currPMat, ldosPMat, currPVec)
@@ -1897,16 +1878,6 @@ contains
       ! converts from internal atomic units into amperes
       currLead(:) = currLead * convertCurrent(unitsOfEnergy, unitsOfCurrent)
 
-      ! Note: ldos might not be computed and associated hence code crash here
-      !if (.not.allocated(ldosMat)) then
-      !  allocate(ldosMat(size(ldosPMat,1),size(ldosPMat,2)), stat=err)
-      !  if (err /= 0) then
-      !    call error('Allocation error (ldosMat)')
-      !  end if
-      !  ldosMat = 0.0_dp
-      !end if
-      !ldosMat = ldosPMat
-
       do ii = 1, size(currLead)
         write(stdOut, *)
         if (this%tLayerCurrents) then
@@ -1917,6 +1888,8 @@ contains
                 & ' current: ', currLead(ii),' ',unitsOfCurrent%name
         end if
       end do
+
+      call destroy_HS(this%negf)
 
     end subroutine calc_current_inel
 
@@ -2344,8 +2317,8 @@ contains
 
     #:if WITH_MPI
       ! Reduce on node 0 as group lead node
-      call mpifx_reduceip(env%mpi%groupComm, csrDens%nzval, MPI_SUM)
-      call mpifx_reduceip(env%mpi%groupComm, csrEDens%nzval, MPI_SUM)
+      !call mpifx_reduceip(env%mpi%groupComm, csrDens%nzval, MPI_SUM)
+      !call mpifx_reduceip(env%mpi%groupComm, csrEDens%nzval, MPI_SUM)
 
       ! Each group lead node prints the local currents
       tPrint = env%mpi%groupComm%lead
