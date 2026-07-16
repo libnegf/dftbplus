@@ -188,12 +188,12 @@ if(WITH_MPI)
   # Find ScaLAPACK to make sure, all components (e.g. ScalapackFx, MBD) use the same ScaLAPACK
   #find_package(CustomScalapack REQUIRED)
 
-  #set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
-  #set(SCALAPACKFX_GIT_TAG "7b98ba99d595a0760da12895b1a63959e881182c")  # do not change manually!
-  #dftbp_config_hybrid_dependency(ScalapackFx ScalapackFx::ScalapackFx "${HYBRID_CONFIG_METHODS}"
-  #  "QUIET" external/scalapackfx "${exclude}" "${SCALAPACKFX_GIT_REPOSITORY}"
-  #  "${SCALAPACKFX_GIT_TAG}")
-  list(APPEND PKG_CONFIG_REQUIRES mpifx)
+  set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
+  set(SCALAPACKFX_GIT_TAG "7b98ba99d595a0760da12895b1a63959e881182c")  # do not change manually!
+  dftbp_config_hybrid_dependency(ScalapackFx ScalapackFx::ScalapackFx "${HYBRID_CONFIG_METHODS}"
+    "QUIET" external/scalapackfx "${exclude}" "${SCALAPACKFX_GIT_REPOSITORY}"
+    "${SCALAPACKFX_GIT_TAG}")
+  #list(APPEND PKG_CONFIG_REQUIRES mpifx)
 endif()
 
 # MBD must be invoked *after* Scalapack has been found by ScalapackFx
@@ -207,7 +207,7 @@ endif()
 
 if(WITH_TRANSPORT)
   set(LIBNEGF_GIT_REPOSITORY "https://gitlab.jsc.fz-juelich.de/nexgf/libnegf.git")
-  set(LIBNEGF_GIT_TAG "0a9743eba67115722a1495df572098c47b8d3a44")  # do not change manually!
+  set(LIBNEGF_GIT_TAG "6efd310ad92e103a65c846dd39740860c5dd3c52")  # do not change manually!
   dftbp_config_hybrid_dependency(Negf Negf::Negf "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/libnegf "${exclude}" "${LIBNEGF_GIT_REPOSITORY}" "${LIBNEGF_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES negf)
