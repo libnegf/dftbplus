@@ -17,6 +17,7 @@ module dftbp_transport_negfvars
   public :: TTransPar
   public :: ContactInfo
   public :: TElph
+  public :: TElpt
 
   public :: interaction_models
   !> Available interaction_models:
@@ -80,6 +81,44 @@ module dftbp_transport_negfvars
     logical :: tTridiagonal = .true.
 
   end type TElPh
+
+  !> Options for electron-photon model
+  type TElPt
+
+    !> True if filled up with info from an input block
+    logical :: defined = .false.
+
+    !> Specify which model in input
+    integer :: model = interaction_models%dummy
+
+    !> Coupling strength (?)
+    real(dp), allocatable :: coupling(:)
+
+    !> Iterations for self-consistent Born approximation
+    integer :: scba_niter = 0
+
+    !> Iterations for self-consistent Born approximation
+    real(dp) :: scba_tol = 0.0_dp
+
+    !> List of orbital per atom for models = (2,3)
+    integer, allocatable :: orbsperatm(:)
+
+    !> phonon frequency
+    real(dp) :: wq = 0.0_dp
+
+    !> dielectric constant at the optical freq
+    real(dp) :: eps_inf = 1.0_dp
+
+    !> whether Umklapp have to be added up
+    logical :: tUmklapp = .false.
+
+    !> whether k -> -k symmetry
+    logical :: tKSymmetry = .true.
+
+    !> whether tri-diagonal blocks are computed
+    logical :: tTridiagonal = .true.
+
+  end type TElPt
 
 
   !Structure for contact information in a transport calculation
@@ -193,6 +232,9 @@ module dftbp_transport_negfvars
 
     !> Buttiker Probe for dephasing
     type(Telph), allocatable :: bp
+
+    !> Buttiker Probe for dephasing
+    type(Telpt), allocatable :: elpt(:)
 
     !> Specify which integration type for current
     integer :: integration = integration_type%trapezoidal
