@@ -81,7 +81,7 @@ module dftbp_dftbplus_parser
 #:endif
 #:if WITH_TRANSPORT
   use dftbp_transport_negfvars, only : TTransPar, TNEGFGreenDensInfo, TNEGFTunDos, TElPh,&
-      & ContactInfo, interaction_models, integration_type
+      & TElPt, ContactInfo, interaction_models, integration_type
 #:endif
   implicit none
 
@@ -204,10 +204,10 @@ contains
         & input%ginfo%greendens, input%poisson)
 
     ! NOTE: Read Dephasing must be after because of slako%orb
-    call getChild(root, "Dephasing", child, requested=.false.)
+    call getChild(root, "Interactions", child, requested=.false.)
     if (associated(child)) then
       !call detailedError(child, "Be patient... Dephasing feature will be available soon!")
-      call readDephasing(child, input%slako%orb, input%geom, input%transpar, input%ginfo%tundos, &
+      call readInteractions(child, input%slako%orb, input%geom, input%transpar, input%ginfo%tundos, &
             & input%ctrl%tReduceByKInversion)
 
       ! read k-sampling again for non-symmetric reduction
@@ -5102,7 +5102,7 @@ contains
         if (.not.associated(child) .and. &
           & ctrl%solver%isolver==electronicSolverTypes%OnlyTransport) then
           call detailedError(node, "The TransportOnly solver requires either &
-               TunnelingAndDos or LayerCurrent or MeirWingreen to be present.")
+              & TunnelingAndDos or LayerCurrent or MeirWingreen to be present.")
         end if
       end if
     end if
@@ -6549,9 +6549,53 @@ contains
 
   end subroutine getContactVector
 
+  !> Read block for electron-phonon interactions
+  subroutine readInteractions(node, orb, geom, tp, tundos, tReduceByKInversion)
 
-  !> Read dephasing block
-  subroutine readDephasing(node, orb, geom, tp, tundos, tReduceByKInversion)
+    !> Input tree node
+    type(fnode), pointer :: node
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Atomic geometry, including the contact atoms
+    type(TGeometry), intent(in) :: geom
+
+    !> Parameters of the transport calculation
+    type(TTransPar), intent(inout) :: tp
+
+    !> Parameters of tunneling and dos calculation
+    type(TNEGFTunDos), intent(inout) :: tundos
+
+    !> Controls whether the k-sampling should be reduced by inversion symmetry
+    logical, intent(inout) :: tReduceByKInversion
+
+
+    type(fnode), pointer :: value1, child
+    type(fnodeList), pointer :: children_elpt
+    integer :: nElPt, ii
+
+    call getChild(node, "ElectronPhonon", child, requested=.false.)
+    if (associated(child)) then
+        call readElPhonons(child, orb, geom, tp, tundos, tReduceByKInversion)
+    end if
+
+    call getChildren(node, "ElectronPhoton", children_elpt)
+    nElPt = getLength(children_elpt)
+    allocate(tundos%elpt(nElPt))
+
+    do ii = 1, nElPt
+      call getItem1(children_elpt, ii, child)
+      if (associated(child)) then
+        call readElPhoton(child, tundos%elpt(ii), geom, orb, tp)
+      end if
+    end do
+
+  end subroutine readInteractions
+
+
+  !> Read block for electron-phonon interactions
+  subroutine readElPhonons(node, orb, geom, tp, tundos, tReduceByKInversion)
 
     !> Input tree node
     type(fnode), pointer :: node
@@ -6613,7 +6657,7 @@ contains
     tp%tNoGeometry = .false.
     tp%NumStates = 0
 
-  end subroutine readDephasing
+  end subroutine readElPhonons
 
 
   !> Read Electron-Phonon blocks (for density and/or current calculation)
@@ -6749,6 +6793,67 @@ contains
 
   end subroutine readInelastic
 
+  !> Read block for electron-photon interactions
+  subroutine readElPhoton(node, elpt, geom, orb, tp)
+
+    !> Input node in the tree
+    type(fnode), pointer :: node
+
+    !> container for electron-photon parameters
+    type(TElPt), intent(inout) :: elpt
+
+    !> Geometry type
+    type(TGeometry), intent(in) :: geom
+
+    !> Orbitals infos
+    type(TOrbitals), intent(in) :: orb
+
+    !> Transport parameter type
+    type(TTransPar), intent(in) :: tp
+
+
+    type(fnode), pointer :: field, child, val
+    type(string) :: modifier, method
+    real(dp) :: rTmp
+    elpt%defined = .true.
+
+    call getChildValue(node, "MaxSCBAIterations", elpt%scba_niter, default=100)
+    call getChildValue(node, "SCBATolerance", elpt%scba_tol, default=1.0d-7)
+    call getChildValue(node, "PhotonFrequency", rTmp, 0.0_dp, modifier=modifier,&
+         & child=field)
+    if (rTmp == 0.0_dp) then
+       call detailedError(node, "PhotonFrequency must be defined > 0.0")
+    end if
+    call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
+    elpt%wq = rTmp
+    call getChildValue(node, "Umklapp", elpt%tUmklapp, .false.)
+    call getChildValue(node, "Tridiagonal", elpt%tTridiagonal, .true.)
+    elpt%tKSymmetry = .true.
+
+    call getChildValue(node, "RefractiveIndex", rTmp, default=1.0_dp)
+    elpt%eps_inf = sqrt(abs(rTmp))
+
+    call getChildValue(node, "Coupling", val, "", child=child, &
+        & allowEmptyValue=.true., modifier=modifier, dummyValue=.true., list=.false.)
+
+    call getNodeName(val, method)
+
+    select case(char(method))
+    case (textNodeName)
+      call getChildValue(node, "Coupling", rTmp, child=field, modifier=modifier)
+      call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
+      elpt%coupling = rTmp
+
+    case ("constant")
+      call getChildValue(child, "Constant", rTmp, child=field)
+      call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
+      elpt%coupling = rTmp
+
+    case default
+      call detailedError(node, "Coupling definition unknown: "//char(method))
+    end select
+
+  end subroutine readElPhoton
 
   !> Read Buettiker probe dephasing blocks (for density and/or current calculation)
   subroutine readDephasingBP(node, elph, geom, orb, tp)
@@ -6862,14 +6967,6 @@ contains
         & allowEmptyValue=.true., modifier=modifier, dummyValue=.true., list=.false.)
 
     call getNodeName(val, method)
-
-    ! This reads also things like:  "Coupling [eV] = 0.34"
-    !if (is_numeric(char(method))) then
-    !  call getChildValue(node, "Coupling", rTmp, child=field)
-    !  call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
-    !  elph%coupling = rTmp
-    !  return
-    !end if
 
     select case (char(method))
     case ("allorbitals")
