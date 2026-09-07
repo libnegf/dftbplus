@@ -55,21 +55,24 @@ Hamiltonian = DFTB {
   #Solver = TransportOnly{}
 }
 
-Dephasing {
+
+Interactions {
  # Elastic = Diagonal{
  #   Coupling [eV] = Constant { 0.50 }
  #   MaxSCBAIterations = 10
  # }
 
- Inelastic = PolarOptical{
-   Coupling [eV] = Constant { 1.0 }
-   PhononFrequency [eV] = 0.14
-   EpsInfinity = 1.0
-   Eps0 = 3.0
-   ScreeningLength = 10.0
-   MaxSCBAIterations = 50
-   SCBATolerance = 1e-7
-   Tridiagonal = Yes
+ ElectronPhonon{
+   Inelastic = PolarOptical{
+     Coupling [eV] = Constant { 1.0 }
+     PhononFrequency [eV] = 0.14
+     EpsInfinity = 1.0
+     Eps0 = 3.0
+     ScreeningLength = 10.0
+     MaxSCBAIterations = 50
+     SCBATolerance = 1e-7
+     Tridiagonal = Yes
+   }
  }
 
 }

@@ -51,12 +51,14 @@ Hamiltonian = DFTB {
   #Solver = TransportOnly{}
 }
 
-Dephasing {
- Elastic = Diagonal{
-   Coupling [eV] = Constant { 0.400 }
-   MaxSCBAIterations = 10 
- }
-}  
+Interactions{
+  ElectronPhonon{
+    Elastic = Diagonal{
+      Coupling [eV] = Constant { 0.400 }
+      MaxSCBAIterations = 10 
+    }
+  }  
+}
 
 Analysis = {
   #Compatible with coherent or elastic scattering

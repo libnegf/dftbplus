@@ -78,30 +78,32 @@ hamiltonian = dftb {
   #!Solver = DivideAndConquer{} 
 }
 
-Dephasing {
- Elastic = Diagonal{
-   Coupling [eV] = Constant { 1.0 }
-   MaxSCBAIterations = 10 
- }
- Inelastic = PolarOptical{
-   Coupling = Constant { 1.0 }
-   PhononFrequency [eV] = 0.1
-   EpsInfinity = 1.0
-   Eps0 = 3.0
-   ScreeningLength = 10.0
-   MaxSCBAIterations = 50 
-   SCBATolerance = 1e-7
-   Tridiagonal = Yes
- }
- #Inelastic = NonPolarOptical{
- #  Coupling = Constant { 1.0 }
- #  PhononFrequency [eV] = 0.2
- #  DeformationPotential [eV] = 0.10
- #  MaxSCBAIterations = 10 
- #  SCBATolerance = 1e-8
- #  Tridiagonal = Yes
- #}
-}  
+Interactions{
+  ElectronPhonon{
+    Elastic = Diagonal{
+      Coupling [eV] = Constant { 1.0 }
+      MaxSCBAIterations = 10 
+    }
+    Inelastic = PolarOptical{
+      Coupling = Constant { 1.0 }
+      PhononFrequency [eV] = 0.1
+      EpsInfinity = 1.0
+      Eps0 = 3.0
+      ScreeningLength = 10.0
+      MaxSCBAIterations = 50 
+      SCBATolerance = 1e-7
+      Tridiagonal = Yes
+    }
+    #Inelastic = NonPolarOptical{
+    #  Coupling = Constant { 1.0 }
+    #  PhononFrequency [eV] = 0.2
+    #  DeformationPotential [eV] = 0.10
+    #  MaxSCBAIterations = 10 
+    #  SCBATolerance = 1e-8
+    #  Tridiagonal = Yes
+    #}
+  }
+}
 
 Analysis{
   LayerCurrents{
