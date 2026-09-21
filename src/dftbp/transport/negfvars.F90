@@ -44,7 +44,7 @@ module dftbp_transport_negfvars
     !> Specify which model in input
     integer :: model = interaction_models%dummy
 
-    !> Coupling strength (?)
+    !> Coupling strength (in energy units)
     real(dp), allocatable :: coupling(:)
 
     !> Iterations for self-consistent Born approximation
@@ -56,7 +56,7 @@ module dftbp_transport_negfvars
     !> List of orbital per atom for models = (2,3)
     integer, allocatable :: orbsperatm(:)
 
-    !> phonon frequency
+    !> phonon frequency (units of energy)
     real(dp) :: wq = 0.0_dp
 
     !> dielectric constant in the high freq limit
@@ -65,11 +65,26 @@ module dftbp_transport_negfvars
     !> dielectric constant in the low freq
     real(dp) :: eps_r = 1.0_dp
 
-    !> screening paramter
+    !> screening paramter (inverse length)
     real(dp) :: q0 = 0.0_dp
 
-    !> deformation potential
+    !> deformation potential (force units)
     real(dp) :: D0 = 0.0_dp
+
+    !> Mass of the cell (mass units)
+    real(dp) :: Mcell = 0.0_dp
+
+    !> Cell volume (volume units)
+    real(dp) :: cell_vol = 0.0_dp
+
+    !> Lattice along transport (length units)
+    real(dp) :: a0 = 0.0_dp
+
+    !> whether it is a 2D PO phonon coupling
+    logical :: tModel2D = .false.
+
+    !> Parameter for 2D PO phonons (length units)
+    real(dp) :: sigma = 0.0_dp
 
     !> whether Umklapp have to be added up
     logical :: tUmklapp = .false.
