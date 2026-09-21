@@ -160,7 +160,7 @@ contains
 
     type(TOrbitals) :: orb
     type(fnode), pointer :: root, tmp, driverNode, hamNode, analysisNode, child, dummy
-    logical :: tReadAnalysis, tBadIntegratingKpoints
+    logical :: tReadAnalysis, tBadIntegratingKpoints, tInelasticTransport
     integer, allocatable :: implicitParserVersion
 
     write(stdout, '(A,1X,I0,/)') 'Parser version:', parserVersion
@@ -210,8 +210,14 @@ contains
       call readInteractions(child, input%slako%orb, input%geom, input%transpar, input%ginfo%tundos, &
             & input%ctrl%tReduceByKInversion)
 
+      if (allocated(input%ginfo%tundos%elph)) then
+         if (any(input%ginfo%tundos%elph(:)%wq > 0.0_dp)) then
+            tInelasticTransport = .true.
+         end if
+      end if
+
       ! read k-sampling again for non-symmetric reduction
-      call readKPoints(hamNode, input%ctrl, input%geom, tBadIntegratingKPoints)
+      call readKPoints(hamNode, input%ctrl, input%geom, tBadIntegratingKPoints, tInelasticTransport)
     end if
 
   #:else
@@ -2704,7 +2710,7 @@ contains
 
 
   !> K-Points
-  subroutine readKPoints(node, ctrl, geo, tBadIntegratingKPoints)
+  subroutine readKPoints(node, ctrl, geo, tBadIntegratingKPoints, tInelasticTransport)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2718,6 +2724,9 @@ contains
     !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
     logical, intent(out) :: tBadIntegratingKPoints
 
+    !> Whether there is an inelastic transport mechanism: Need an homogeneus grid sampling
+    logical, intent(in), optional :: tInelasticTransport
+
     integer :: ii
     character(lc) :: errorStr
 
@@ -2727,7 +2736,7 @@ contains
     ! K-Points
     if (geo%tPeriodic) then
 
-      call getEuclideanKSampling(tBadIntegratingKPoints, ctrl, node, geo)
+      call getEuclideanKSampling(tBadIntegratingKPoints, ctrl, node, geo, tInelasticTransport)
 
     else if (geo%tHelical) then
 
@@ -2758,7 +2767,7 @@ contains
 
 
   !> K-points in Euclidean space
-  subroutine getEuclideanKSampling(tBadIntegratingKPoints, ctrl, node, geo)
+  subroutine getEuclideanKSampling(tBadIntegratingKPoints, ctrl, node, geo, tInelasticTransport)
 
     !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
     logical, intent(out) :: tBadIntegratingKPoints
@@ -2772,6 +2781,10 @@ contains
     !> Geometry structure
     type(TGeometry), intent(in) :: geo
 
+    !> Whether there is an inelastic transport mechanism: Need an homogeneus grid sampling
+    logical, intent(in), optional :: tInelasticTransport
+
+
     type(fnode), pointer :: value1, child
     type(string) :: buffer, modifier
     integer :: ind, ii, jj, kk
@@ -2781,6 +2794,7 @@ contains
     type(TListRealR1) :: lr1
     integer, allocatable :: tmpI1(:)
     real(dp), allocatable :: kpts(:,:)
+    logical :: dimOK(3)
 
     call getChildValue(node, "KPointsAndWeights", value1, child=child, &
         &modifier=modifier)
@@ -2802,6 +2816,30 @@ contains
           &> 1e-6_dp)) then
         call detailedError(value1, "The components of the supercell matrix &
             &must be integers.")
+      end if
+      if (present(tInelasticTransport)) then
+        if (tInelasticTransport) then
+          if (coeffsAndShifts(1,2) /= 0.0_dp .or. coeffsAndShifts(1,3) /= 0.0_dp .or. &
+            & coeffsAndShifts(2,1) /= 0.0_dp .or. coeffsAndShifts(2,3) /= 0.0_dp .or. &
+            & coeffsAndShifts(3,1) /= 0.0_dp .or. coeffsAndShifts(3,2) /= 0.0_dp) then
+            call detailedError(value1, "With inelastic transport the indices must be diagonal")
+          end if
+          dimOK = .false.
+          do ii = 1, 3
+            if (coeffsAndShifts(ii,ii) == 1.0_dp .and. coeffsAndShifts(ii,4) == 0.0_dp) then
+              dimOK(ii) = .true.
+            else if (modulo(coeffsAndShifts(ii,ii),2.0_dp) == 0 .and. &
+                 & coeffsAndShifts(ii,4) == 0.5_dp) then
+              dimOK(ii) = .true.
+            end if
+          end do
+          if (.not. all(dimOK)) then
+            write(stdOut, '("Inelastic transport requires a uniform k-sampling")')
+            write(stdOut, '("Ensure you define either n == 1 and shift == 0.0")')
+            write(stdOut, '("or an even n and shift == 0.5")')
+            call detailedError(value1,"Invalid kpoints for inelastic interactions")
+          end if
+        end if
       end if
       call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
             & ctrl%kPoint, ctrl%kWeight, reduceByInversion=ctrl%tReduceByKInversion)
@@ -6577,7 +6615,7 @@ contains
 
     call getChild(node, "ElectronPhonon", child, requested=.false.)
     if (associated(child)) then
-        call readElPhonons(child, orb, geom, tp, tundos, tReduceByKInversion)
+        call readElPhonons(child, orb, geom, tp, tundos)
     end if
 
     call getChildren(node, "ElectronPhoton", children_elpt)
@@ -6591,11 +6629,20 @@ contains
       end if
     end do
 
+    call getChildValue(node, "KSymmetry", tReduceByKInversion, .false.)
+
+    if (allocated(tundos%elph)) then
+      tundos%elph(:)%tKSymmetry = tReduceByKInversion
+    end if
+    if (allocated(tundos%elpt)) then
+      tundos%elpt(:)%tKSymmetry = tReduceByKInversion
+    end if
+
   end subroutine readInteractions
 
 
   !> Read block for electron-phonon interactions
-  subroutine readElPhonons(node, orb, geom, tp, tundos, tReduceByKInversion)
+  subroutine readElPhonons(node, orb, geom, tp, tundos)
 
     !> Input tree node
     type(fnode), pointer :: node
@@ -6612,8 +6659,6 @@ contains
     !> Parameters of tunneling and dos calculation
     type(TNEGFTunDos), intent(inout) :: tundos
 
-    !> Controls whether the k-sampling should be reduced by inversion symmetry
-    logical, intent(inout) :: tReduceByKInversion
 
     type(fnode), pointer :: value1, child
     type(fnodeList), pointer :: children_el, children_inel
@@ -6637,7 +6682,6 @@ contains
       call getItem1(children_inel, ii, child)
       if (associated(child)) then
         call readInelastic(child, tundos%elph(nEl+ii), geom, orb, tp)
-        tReduceByKInversion = .false.
       end if
     end do
 
@@ -6756,13 +6800,24 @@ contains
           & child=field)
       call convertUnitHsd(char(modifier), lengthUnits, field, tmp)
       elph%q0 = 1.0_dp/tmp
+    case ("polaroptical2d")
+      elph%model = interaction_models%polaroptical
+      elph%tModel2D = .true.
+      call getChild(child, "PolarOptical2D", child2)
+      call read_common_part(child2)
+      call getChildValue(child2, "Sigma", elph%sigma, 0.0_dp, modifier=modifier,&
+          & child=field)
+      call convertUnitHsd(char(modifier), lengthUnits, field, elph%sigma)
     case ("nonpolaroptical")
       elph%model = interaction_models%nonpolaroptical
       call getChild(child, "NonPolarOptical", child2)
       call read_common_part(child2)
       call getChildValue(child2, "DeformationPotential", elph%D0, 0.0_dp, modifier=modifier,&
             & child=field)
-      call convertUnitHsd(char(modifier), energyUnits, field, elph%D0)
+      call convertUnitHsd(char(modifier), forceUnits, field, elph%D0)
+      call getChildValue(child2, "Mass_cell", elph%Mcell, 0.0_dp, modifier=modifier,&
+            & child=field)
+      call convertUnitHsd(char(modifier), massUnits, field, elph%Mcell)
     case default
       call detailedError(child,"unkown inelastic phonon type: "//char(phonontype))
     end select
@@ -6779,11 +6834,21 @@ contains
       call getChildValue(node, "SCBATolerance", elph%scba_tol, default=1.0d-7)
       call getChildValue(node, "PhononFrequency", tmp, 0.0_dp, modifier=modifier,&
            & child=field)
-      if (tmp == 0.0_dp) then
+      if (tmp <= 0.0_dp) then
          call detailedError(node, "PhononFrequency must be defined > 0.0")
       end if
       call convertUnitHsd(char(modifier), energyUnits, field, tmp)
       elph%wq = tmp
+
+      call getChildValue(child2, "CellVolume", elph%cell_vol, 0.0_dp, modifier=modifier,&
+          & child=field)
+      call convertUnitHsd(char(modifier), volumeUnits, field, elph%cell_vol)
+      call getChildValue(child2, "Lattice_z", elph%a0, 0.0_dp, modifier=modifier,child=field)
+      call convertUnitHsd(char(modifier), lengthUnits, field, elph%a0)
+
+      if (elph%cell_vol <= 0.0_dp .or. elph%a0 <= 0.0_dp) then
+         call detailedError(node, "CellVolume and Lattice_z must be defined > 0.0")
+      end if
       call getChildValue(node, "Umklapp", elph%tUmklapp, .false.)
       call getChildValue(node, "KSymmetry", elph%tKSymmetry, .true.)
       call getChildValue(node, "Tridiagonal", elph%tTridiagonal, .true.)

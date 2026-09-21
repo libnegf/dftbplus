@@ -123,6 +123,7 @@ contains
     real(dp), allocatable :: pot(:), eFermi(:)
     integer :: i, l, ncont, nldos
     type(lnParams) :: params
+    logical :: tKSymmetry
 
 #:if WITH_MPI
     call negf_mpi_init(this%negf, env%mpi%globalComm, env%mpi%groupComm, &
@@ -382,7 +383,18 @@ contains
       this%negf%cont(:)%tReadSurfaceGF = transpar%contacts(:)%tReadSurfaceGF
     end if
 
-    call this%setup_kpoints(kPoint, kWeight, localKS(1,:))
+    tKsymmetry = .false.
+    if (allocated(tundos%elph)) then
+       if (tundos%elph(1)%tKSymmetry) tKSymmetry = .true.
+    end if
+    if (allocated(tundos%elpt)) then
+       if (tundos%elpt(1)%tKSymmetry) tKSymmetry = .true.
+    end if
+    if (tKSymmetry) then
+       call this%setup_kpoints(kPoint, kWeight, localKS(1,:), 2)
+    else
+       call this%setup_kpoints(kPoint, kWeight, localKS(1,:), 1)
+    end if
 
     if (tundos%defined) then
       this%tLayerCurrents = tundos%layerCurrent
@@ -479,7 +491,7 @@ contains
     logical, intent(inout) :: inelastic
 
     integer :: ii
-    real(dp) :: kbT, cell_area, deltaz
+    real(dp) :: kbT, deltaz
     real(dp) :: elastic_tol, inelastic_tol
 
     kbT = 0.0_dp
@@ -487,7 +499,6 @@ contains
       kbT = kbT + negf%cont(ii)%kbT_t
     end do
     kbT = kbT/size(negf%cont)
-    cell_area = 1.0_dp
     deltaz = 0.01_dp
     inelastic = .false.
     elastic_tol = 10.0
@@ -513,14 +524,16 @@ contains
       case(interaction_models%polaroptical)
         write(stdOut,*) 'Setting polar-optical inelastic scattering model'
         call set_elph_polaroptical(negf, elph(ii)%coupling, elph(ii)%wq, kbT, &
-             & deltaz, elph(ii)%eps_r, elph(ii)%eps_inf, elph(ii)%q0, &
-             & cell_area, elph(ii)%scba_niter, elph(ii)%tTridiagonal)
+             & deltaz, elph(ii)%eps_r, elph(ii)%eps_inf, elph(ii)%q0, elph(ii)%cell_vol, &
+             & elph(ii)%a0, elph(ii)%tModel2D, elph(ii)%sigma, elph(ii)%scba_niter, &
+             & elph(ii)%tTridiagonal)
         if ( elph(ii)%scba_tol < inelastic_tol ) inelastic_tol = elph(ii)%scba_tol
         if (.not.inelastic) inelastic = .true.
       case(interaction_models%nonpolaroptical)
         write(stdOut,*) 'Setting non polar-optical inelastic scattering model'
         call set_elph_nonpolaroptical(negf, elph(ii)%coupling, elph(ii)%wq, kbT, &
-             & deltaz, elph(ii)%D0, cell_area, elph(ii)%scba_niter, elph(ii)%tTridiagonal)
+             & deltaz, elph(ii)%D0, elph(ii)%Mcell, elph(ii)%cell_vol, elph(ii)%a0, &
+             & elph(ii)%scba_niter, elph(ii)%tTridiagonal)
         if ( elph(ii)%scba_tol < inelastic_tol ) inelastic_tol = elph(ii)%scba_tol
         if (.not.inelastic) inelastic = .true.
       case default
@@ -781,7 +794,7 @@ contains
   end subroutine setup_str
 
   !> Initialise the structures for the libNEGF library
-  subroutine setup_kpoints(this, kpoints, kweights, local_kindex)
+  subroutine setup_kpoints(this, kpoints, kweights, local_kindex, kSamplingType)
     !> Instance.
     class(TNegfInt), intent(inout) :: this
 
@@ -794,7 +807,11 @@ contains
     !> index of kpoints in the array (maps local to global)
     integer, intent(in) :: local_kindex(:)
 
-    call set_kpoints(this%negf, kpoints, kweights, local_kindex, kSamplingType=1)
+    !> type of sampling: 0 unshifted, 1 shifted, 2 shifted + k -k symmetry
+    integer, intent(in) :: kSamplingType
+
+    ! call to negf init subroutine
+    call set_kpoints(this%negf, kpoints, kweights, local_kindex, kSamplingType)
 
   end subroutine setup_kpoints
 
