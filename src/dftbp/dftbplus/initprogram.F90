@@ -1037,7 +1037,7 @@ module dftbp_dftbplus_initprogram
     character(lc), allocatable :: regionLabelLDOS(:)
 
     !> True if Tunneling is stored on separate files
-    logical :: writeTunn
+    logical :: tWriteTunn
 
     !> Holds spin-dependent electrochemical potentials of contacts
     !> This is because libNEGF is not spin-aware
@@ -1577,7 +1577,7 @@ contains
           & this%shiftPerLUp, this%chargeUp, this%blockUp)
     end if
     call initTransport_(env, input, this%electronicSolver, this%nSpin, this%tempElec, this%tNegf,&
-        & this%isAContactCalc, this%mu, this%negfInt, this%ginfo, this%transpar, this%writeTunn,&
+        & this%isAContactCalc, this%mu, this%negfInt, this%ginfo, this%transpar, this%tWriteTunn,&
         & this%tWriteLDOS, this%regionLabelLDOS, this%kPoint, this%kWeight, this%parallelKS%localKS)
   #:else
     this%tTunn = .false.
@@ -4429,7 +4429,7 @@ contains
 
   !> Initialise a transport calculation
   subroutine initTransport_(env, input, electronicSolver, nSpin, tempElec, tNegf, isAContactCalc,&
-      & mu, negfInt, ginfo, transpar, writeTunn, tWriteLDOS, regionLabelLDOS, kPoint, kWeight, localKS)
+      & mu, negfInt, ginfo, transpar, tWriteTunn, tWriteLDOS, regionLabelLDOS, kPoint, kWeight, localKS)
     type(TEnvironment), intent(inout) :: env
     type(TInputData), intent(in) :: input
     type(TElectronicSolver), intent(inout) :: electronicSolver
@@ -4441,7 +4441,7 @@ contains
     type(TNegfInt), intent(out) :: negfInt
     type(TNegfInfo), intent(out) :: ginfo
     type(TTransPar), intent(out) :: transpar
-    logical, intent(out) :: writeTunn, tWriteLDOS
+    logical, intent(out) :: tWriteTunn, tWriteLDOS
     character(lc), allocatable, intent(out) :: regionLabelLDOS(:)
     real(dp), intent(in) :: kPoint(:,:)
     real(dp), intent(in) :: kWeight(:)
@@ -4523,7 +4523,7 @@ contains
     transpar = input%transpar
 
     !Write Dos and tunneling on separate files?
-    writeTunn = ginfo%tundos%writeTunn
+    tWriteTunn = ginfo%tundos%writeTunn
     tWriteLDOS = ginfo%tundos%writeLDOS
 
     if (tWriteLDOS) then
