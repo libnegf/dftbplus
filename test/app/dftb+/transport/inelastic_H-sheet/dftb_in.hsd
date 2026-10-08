@@ -1,10 +1,10 @@
-# In this test there are 4 x 12 H-Atoms. 
+# In this test there are 4 x 12 H-Atoms.
 # The 4 H atoms form an equivalent number of subbands at energies, E0_n = -2t, 0 (x2), +2t
 # E_1 = -t - 2t cos(kz * z)
 # E_2 =  0 - 2t cos(kz * z)
 # E_3 =  0 - 2t cos(kz * z)
 # E_4 = +t - 2t cos(kz * z)
- 
+
 
 geometry = genformat {
 <<< "h-sheet.gen"
@@ -12,7 +12,7 @@ geometry = genformat {
 
 transport {
     device {
-      atomrange = 1 48 
+      atomrange = 1 48
     FirstLayerAtoms = 1 9 17 25 33 41
     }
     contact {
@@ -28,16 +28,16 @@ transport {
       potential [eV] = -0.050
     }
 
-  
+
  #!task = ContactHamiltonian{
  #  ContactId = "Source"
  #}
 }
 
 hamiltonian = dftb {
-  scc = yes 
+  scc = yes
   scctolerance = 1e-6
-  maxscciterations = 1 
+  maxscciterations = 1
   ConvergentSCCOnly = No
   #ReadInitialCharges = Yes
   maxangularmomentum = {
@@ -50,56 +50,70 @@ hamiltonian = dftb {
 
   KPointsAndWeights =  SupercellFolding {
    1   0   0
-   0   16  0 
-   0   0   1 
+   0   16  0
+   0   0   1
    0.0 0.5 0.0
   }
 
   Electrostatics = Poisson {
     MinimalGrid [Angstrom] = 0.3 0.2 0.3
     AtomDensityCutoff [Angstrom] = 2.000
-     SavePotential = Yes 
+     SavePotential = Yes
     PoissonAccuracy = 1e-7
     BuildBulkPotential = No
-    #RecomputeAfterDensity = Yes 
+    #RecomputeAfterDensity = Yes
   }
 
   #!Electrostatics = gammafunctional{}
- 
+
   slaterkosterfiles = {
     H-H = "H-H-noS.skf"
   }
 
   Solver = GreensFunction{
-     ContourPoints = 0 0 
+     ContourPoints = 0 0
      RealAxisPoints = 0
      EnclosedPoles = 0
   }
-  #!Solver = DivideAndConquer{} 
+  #!Solver = DivideAndConquer{}
 }
 
 Interactions{
+  KSymmetry = Yes
   ElectronPhonon{
     Elastic = Diagonal{
-      Coupling [eV] = Constant { 1.0 }
-      MaxSCBAIterations = 10 
+      Coupling [eV] = Constant { 1.00 }
+      MaxSCBAIterations = 20
     }
+    #Inelastic = PolarOptical2D{
+    #  Coupling [eV] = Constant { 4.0 }
+    #  PhononFrequency [eV] = 0.1
+    #  CellVolume = 1.0
+    #  Lattice_z = 1.0
+    #  sigma [AA] = 2.0
+    #  MaxSCBAIterations = 50
+    #  SCBATolerance = 1e-6
+    #  Tridiagonal = Yes
+    #}
     Inelastic = PolarOptical{
       Coupling = Constant { 1.0 }
       PhononFrequency [eV] = 0.1
+      CellVolume = 1.0
+      Lattice_z = 1.0
       EpsInfinity = 1.0
       Eps0 = 3.0
       ScreeningLength = 10.0
-      MaxSCBAIterations = 50 
-      SCBATolerance = 1e-7
+      MaxSCBAIterations = 50
+      SCBATolerance = 1e-6
       Tridiagonal = Yes
     }
     #Inelastic = NonPolarOptical{
-    #  Coupling = Constant { 1.0 }
-    #  PhononFrequency [eV] = 0.2
-    #  DeformationPotential [eV] = 0.10
-    #  MaxSCBAIterations = 10 
-    #  SCBATolerance = 1e-8
+    #  Coupling [eV] = Constant { 1.0 }
+    #  PhononFrequency [eV] = 0.1
+    #  CellVolume [AA^3] = 30.0
+    #  Lattice_z [AA] = 3.16
+    #  MaxSCBAIterations = 20
+    #  SCBATolerance = 1e-6
     #  Tridiagonal = Yes
     #}
   }
@@ -109,7 +123,7 @@ Analysis{
   LayerCurrents{
     Verbosity = 31
     EnergyRange [eV] = -5.00 -3.10
-    EnergyStep [eV] = 0.02 
+    EnergyStep [eV] = 0.02
   }
 }
 
@@ -122,7 +136,7 @@ Parallel = {
 }
 
 options = {
-  writeautotesttag = yes 
+  writeautotesttag = yes
 }
 
 parseroptions = {
