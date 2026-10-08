@@ -106,7 +106,7 @@ module dftbp_transport_negfvars
     !> Specify which model in input
     integer :: model = interaction_models%dummy
 
-    !> Coupling strength (?)
+    !> Coupling strength (just a dimensionless prefactor)
     real(dp), allocatable :: coupling(:)
 
     !> Iterations for self-consistent Born approximation
@@ -121,8 +121,32 @@ module dftbp_transport_negfvars
     !> phonon frequency
     real(dp) :: wq = 0.0_dp
 
+    !> number of photon frequancies (for solar spectrum and emission spectrum)
+    integer :: nfreq = 0
+
     !> dielectric constant at the optical freq
-    real(dp) :: eps_inf = 1.0_dp
+    real(dp) :: refractive_index = 1.0_dp
+
+    !> light intensity (units of Power/surface)
+    real(dp) :: intensity = 0.0_dp
+
+    !> polarization axis x=1, y=2, z=3
+    integer :: poldir = 1
+
+    !> Cell volume (volume units)
+    real(dp) :: cell_vol = 0.0_dp
+
+    !> Lattice along transport (length units)
+    real(dp) :: a0 = 0.0_dp
+
+    !> Blackbody temperature (energy units)
+    real(dp) :: kbT = 0.0_dp
+
+    !> whether spontaneus emission is included in the calculation
+    logical :: tSpontEmission = .true.
+
+    !> whether exclude from SCC calculation
+    logical :: tExcludeSCC = .false.
 
     !> whether Umklapp have to be added up
     logical :: tUmklapp = .false.

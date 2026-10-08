@@ -23,7 +23,7 @@ module dftbp_common_unitconversion
   public :: TUnit
   public :: lengthUnits, inverseLengthUnits, energyUnits, forceUnits, timeUnits, freqUnits
   public :: volumeUnits, chargeUnits, EFieldUnits, BFieldUnits, pressureUnits, velocityUnits
-  public :: dipoleUnits, massUnits, angularUnits, massDensityUnits
+  public :: dipoleUnits, massUnits, angularUnits, massDensityUnits, lightIntensityUnits
   public :: statusCodes, convertUnit
 
 
@@ -82,6 +82,8 @@ module dftbp_common_unitconversion
       & TUnit("meter               ", 1.0e10_dp * AA__Bohr),&
       & TUnit("m                   ", 1.0e10_dp * AA__Bohr),&
       & TUnit("bohr                ", 1.0_dp),&
+      & TUnit("nm                  ", 10.0_dp * AA__Bohr),&
+      & TUnit("nanometer           ", 10.0_dp * AA__Bohr),&
       & TUnit("pm                  ", 1.0e-2_dp * AA__Bohr),&
       & TUnit("picometer           ", 1.0e-2_dp * AA__Bohr),&
       & TUnit("au                  ", 1.0_dp)&
@@ -120,6 +122,19 @@ module dftbp_common_unitconversion
       & TUnit("nm                  ", 2.0_dp * pi * c / nm__Bohr, invertValue=.true.)&
       & ]
 
+  !> Power units
+  type(TUnit), parameter :: powerUnits(*) = [&
+      & TUnit("w                   ", 1.0_dp/0.180229_dp),&
+      & TUnit("au                  ", 1.0_dp)&
+      & ]
+
+  !> Light intensity units [W/m^2]
+  ! Note: W/cm^2 = J_Hartree / (fs_au * Bohr^2) * 1.0e-31_dp = 1.5536615665016044e-16
+  type(TUnit), parameter :: lightIntensityUnits(*) = [&
+      & TUnit("w/m^2               ", 1.5536615665016044e-20_dp),&
+      & TUnit("w/cm^2              ", 1.5536615665016044e-16_dp),&
+      & TUnit("au                  ", 1.0_dp)&
+      & ]
 
   !> Force units
   type(TUnit), parameter :: forceUnits(*) = [&
@@ -163,6 +178,8 @@ module dftbp_common_unitconversion
       & TUnit("a^3                 ", AA__Bohr**3),&
       & TUnit("meter^3             ", (1.0e10_dp * AA__Bohr)**3),&
       & TUnit("m^3                 ", (1.0e10_dp * AA__Bohr)**3),&
+      & TUnit("nanometer^3         ", (1.0e3_dp * AA__Bohr)**3),&
+      & TUnit("nm^3                ", (1.0e3_dp * AA__Bohr)**3),&
       & TUnit("picometer^3         ", (1.0e-2_dp * AA__Bohr)**3),&
       & TUnit("pm^3                ", (1.0e-2_dp * AA__Bohr)**3),&
       & TUnit("bohr^3              ", 1.0_dp),&

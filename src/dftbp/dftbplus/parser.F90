@@ -16,7 +16,7 @@ module dftbp_dftbplus_parser
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_unitconversion, only : lengthUnits, energyUnits, forceUnits, pressureUnits,&
       & timeUnits, EFieldUnits, freqUnits, massUnits, VelocityUnits, dipoleUnits, chargeUnits,&
-      & volumeUnits, angularUnits
+      & volumeUnits, angularUnits, lightIntensityUnits
   use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getCovalentRadius, cnType
   use dftbp_dftb_dftbplusu, only : plusUFunctionals
   use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
@@ -6801,7 +6801,7 @@ contains
       call convertUnitHsd(char(modifier), lengthUnits, field, tmp)
       elph%q0 = 1.0_dp/tmp
     case ("polaroptical2d")
-      elph%model = interaction_models%polaroptical
+      elph%model = interaction_models%polaroptical2D
       elph%tModel2D = .true.
       call getChild(child, "PolarOptical2D", child2)
       call read_common_part(child2)
@@ -6840,10 +6840,10 @@ contains
       call convertUnitHsd(char(modifier), energyUnits, field, tmp)
       elph%wq = tmp
 
-      call getChildValue(child2, "CellVolume", elph%cell_vol, 0.0_dp, modifier=modifier,&
+      call getChildValue(node, "CellVolume", elph%cell_vol, 0.0_dp, modifier=modifier,&
           & child=field)
       call convertUnitHsd(char(modifier), volumeUnits, field, elph%cell_vol)
-      call getChildValue(child2, "Lattice_z", elph%a0, 0.0_dp, modifier=modifier,child=field)
+      call getChildValue(node, "Lattice_z", elph%a0, 0.0_dp, modifier=modifier,child=field)
       call convertUnitHsd(char(modifier), lengthUnits, field, elph%a0)
 
       if (elph%cell_vol <= 0.0_dp .or. elph%a0 <= 0.0_dp) then
@@ -6877,46 +6877,104 @@ contains
     type(TTransPar), intent(in) :: tp
 
 
-    type(fnode), pointer :: field, child, val
-    type(string) :: modifier, method
-    real(dp) :: rTmp
+    type(fnode), pointer :: field, child, child2
+    type(string) :: modifier, photontype
+
+    ! READ NONPOLAR-OPTICAL, POLAR-OPTICAL
+    call getChildValue(node, "", field, child=child)
+    call getNodeName2(field, photontype)
+
+    select case (char(photontype))
+    case ("laser")
+      elpt%model = interaction_models%laser
+      call getChild(child, "Laser", child2)
+      call read_common_part(child2)
+    case ("solarspectrum")
+      elpt%model = interaction_models%solarspectrum
+      call getChild(child, "Solarspectrum", child2)
+      call read_common_part(child2)
+    case ("blackbody")
+      elpt%model = interaction_models%blackbody
+      call getChild(child, "BlackBody", child2)
+      call read_common_part(child2)
+      call getChildValue(child2, "Temperature", elpt%kbT, modifier=modifier, child=field)
+      call convertUnitHsd(char(modifier), energyUnits, field, elpt%kbT)
+    case ("debug")
+      elpt%model = interaction_models%debugelpt
+      call getChild(child, "Debug", child2)
+      call read_common_part(child2)
+    case default
+      call detailedError(child,"unkown photon type: "//char(photontype))
+    end select
+
     elpt%defined = .true.
 
-    call getChildValue(node, "MaxSCBAIterations", elpt%scba_niter, default=100)
-    call getChildValue(node, "SCBATolerance", elpt%scba_tol, default=1.0d-7)
-    call getChildValue(node, "PhotonFrequency", rTmp, 0.0_dp, modifier=modifier,&
-         & child=field)
-    if (rTmp == 0.0_dp) then
-       call detailedError(node, "PhotonFrequency must be defined > 0.0")
-    end if
-    call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
-    elpt%wq = rTmp
-    call getChildValue(node, "Umklapp", elpt%tUmklapp, .false.)
-    call getChildValue(node, "Tridiagonal", elpt%tTridiagonal, .true.)
-    elpt%tKSymmetry = .true.
+    contains
+    subroutine read_common_part(node)
+      type(fnode), pointer :: node
 
-    call getChildValue(node, "RefractiveIndex", rTmp, default=1.0_dp)
-    elpt%eps_inf = sqrt(abs(rTmp))
+      type(fnode), pointer :: field, child, val
+      type(string) :: modifier, method
+      real(dp) :: rTmp
 
-    call getChildValue(node, "Coupling", val, "", child=child, &
-        & allowEmptyValue=.true., modifier=modifier, dummyValue=.true., list=.false.)
-
-    call getNodeName(val, method)
-
-    select case(char(method))
-    case (textNodeName)
-      call getChildValue(node, "Coupling", rTmp, child=field, modifier=modifier)
+      call getChildValue(node, "MaxSCBAIterations", elpt%scba_niter, default=100)
+      call getChildValue(node, "SCBATolerance", elpt%scba_tol, default=1.0d-7)
+      call getChildValue(node, "PhotonFrequency", rTmp, 0.0_dp, modifier=modifier,&
+           & child=field)
+      if (rTmp == 0.0_dp) then
+         call detailedError(node, "PhotonFrequency must be defined > 0.0")
+      end if
       call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
-      elpt%coupling = rTmp
+      elpt%wq = rTmp
+      call getChildValue(node, "Umklapp", elpt%tUmklapp, .false.)
+      call getChildValue(node, "Tridiagonal", elpt%tTridiagonal, .true.)
+      call getChildValue(node, "ExcludeFromSCC", elpt%tExcludeSCC, .false.)
 
-    case ("constant")
-      call getChildValue(child, "Constant", rTmp, child=field)
-      call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
-      elpt%coupling = rTmp
+      call getChildValue(node, "SpontaneousEmission", elpt%tSpontEmission, .true.)
 
-    case default
-      call detailedError(node, "Coupling definition unknown: "//char(method))
-    end select
+      call getChildValue(node, "NumberFrequencies", elpt%nFreq, 40)
+      elpt%tKSymmetry = .true.
+
+      call getChildValue(node, "RefractiveIndex", elpt%refractive_index, default=1.0_dp)
+
+      call getChildValue(node, "LightIntensity", elpt%intensity, 0.0_dp, modifier=modifier, &
+            & child=field)
+      call convertUnitHsd(char(modifier), lightIntensityUnits, field, elpt%intensity)
+
+      call getChildValue(node, "Polarization", elpt%poldir, default=1)
+
+      call getChildValue(node, "CellVolume", elpt%cell_vol, 1.0_dp, modifier=modifier,&
+            & child=field)
+      call convertUnitHsd(char(modifier), volumeUnits, field, elpt%cell_vol)
+
+      call getChildValue(node, "Lattice_z", elpt%a0, 0.0_dp, modifier=modifier,child=field)
+      call convertUnitHsd(char(modifier), lengthUnits, field, elpt%a0)
+
+      allocate(elpt%coupling(1))
+      elpt%coupling(:) = 0.d0
+
+      call getChildValue(node, "Coupling", val, "", child=child, &
+          & allowEmptyValue=.true., modifier=modifier, dummyValue=.true., list=.false.)
+
+      call getNodeName(val, method)
+
+      select case(char(method))
+      case (textNodeName)
+        call getChildValue(node, "Coupling", rTmp, child=field, modifier=modifier)
+        call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
+        elpt%coupling = rTmp
+      case ("constant")
+        call getChildValue(child, "Constant", rTmp, child=field)
+        call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
+        elpt%coupling = rTmp
+      case default
+        call detailedError(node, "Coupling definition unknown: "//char(method))
+      end select
+       
+      print*, "Photon coupling: ", elpt%coupling 
+
+
+    end subroutine read_common_part
 
   end subroutine readElPhoton
 
