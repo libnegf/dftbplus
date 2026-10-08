@@ -392,7 +392,7 @@ contains
           & this%ints%overlap, this%neighbourList%iNeighbour, this%nNeighbourSK,&
           & this%densedesc%iAtomStart, this%iSparseStart, this%img2CentCell, this%iCellVec,&
           & this%cellVec, this%orb, this%kPoint, this%kWeight, this%tunneling, this%current,&
-          & this%ldos, this%leadCurrents, this%writeTunn, this%tWriteLDOS, this%regionLabelLDOS,&
+          & this%ldos, this%leadCurrents, this%tWriteTunn, this%tWriteLDOS, this%regionLabelLDOS,&
           & this%mu)
     end if
 

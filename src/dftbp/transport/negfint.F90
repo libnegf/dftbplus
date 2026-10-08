@@ -25,13 +25,13 @@ module dftbp_transport_negfint
       & set_elph_s_dephasing, set_ldos_indexes, set_params, set_scratch, writememinfo, create_dm,&
       & writepeakinfo, printcsr, set_elph_polaroptical, set_elph_nonpolaroptical, set_kpoints, &
       & init_basis, compute_layer_current, compute_meir_wingreen, set_scba_tolerances, get_dm,&
-      & copy_dm, destroy_dm
+      & copy_dm, destroy_dm, set_elphoton, get_scba_tolerances
   use dftbp_io_formatout, only : writeXYZFormat
   use dftbp_io_message, only : error, warning
   use dftbp_math_eigensolver, only : heev
   use dftbp_transport_matconv, only : init, destruct, foldToCSR, unfoldFromCSR
   use dftbp_transport_negfvars, only : TTranspar, TNEGFGreenDensInfo, TNEGFTunDos, ContactInfo,&
-      & TElph, interaction_models
+      & TElph, TElpt, interaction_models
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
 #:if WITH_MPI
@@ -67,7 +67,7 @@ module dftbp_transport_negfint
     !> whether layer currents should be computed
     logical :: tLayerCurrents = .false.
 
-    !> whether layer currents should be computed
+    !> whether Meir-Wingreen contact current should be computed
     logical :: tMeirWingreen = .false.
 
   contains
@@ -76,7 +76,7 @@ module dftbp_transport_negfint
     procedure :: setup_csr
     procedure :: setup_str
     procedure :: setup_kpoints
-    procedure :: setup_dephasing
+    procedure :: setup_interactions
     procedure :: calcdensity_green
     procedure :: calcEdensity_green
     procedure :: calc_current
@@ -309,8 +309,14 @@ contains
         write(stdOut,*) 'Temperature (DM): ', params%kbT_dm(1)
         write(stdOut,*) 'eFermi: ', params%mu(1)
       end if
+      write(stdOut,*) 'Contour Integration: '
+      write(stdOut,*) 'Lowest Energy: ', params%Ec 
+      write(stdOut,*) 'Energy Range: ', minval(params%mu(1:ncont)), maxval(params%mu(1:ncont))
+      write(stdOut,*) 'n * kbT: ', params%n_kt*maxval(params%kbT_dm(:))
+      write(stdOut,*) 'Note that the Energy range is extended by n*kbT+maxval(wq)'
       write(stdOut,*) 'Contour Points: ', params%Np_n(1:2)
       write(stdOut,*) 'Number of poles: ', params%N_poles
+      write(stdOut,*) 'Note that we later set nPoles:=0 for inelastic transport'
       write(stdOut,*) 'Real-axis points: ', params%Np_real
       if (params%readOldDM_SGFs==0) then
         write(stdOut,*) 'Read Existing SGFs: Yes '
@@ -450,13 +456,13 @@ contains
     call this%setup_str(denseDescr, transpar, greendens, coords, latVec, &
         & neighbourList%iNeighbour, nNeighbourSK, img2CentCell)
 
-    call this%setup_dephasing(tundos)
+    call this%setup_interactions(tundos)
 
   end subroutine setup_structure
 
 
   !> Initialise dephasing effects
-  subroutine setup_dephasing(this, tundos)
+  subroutine setup_interactions(this, tundos)
 
     !> Instance.
     class(TNegfInt), intent(inout) :: this
@@ -465,21 +471,38 @@ contains
     type(TNEGFTunDos), intent(in) :: tundos
 
     logical :: inelastic
+    real(dp) :: elastic_tol, inelastic_tol, default_elastic_tol, default_inelastic_tol
+
+    inelastic = .false.
+    elastic_tol = huge(1.0_dp)
+    inelastic_tol = huge(1.0_dp)
 
     if(allocated(tundos%elph)) then
-      call negf_setup_elph(this%negf, tundos%elph, inelastic)
+      call negf_setup_elph(this%negf, tundos%elph, inelastic, elastic_tol, inelastic_tol)
+    end if
+
+    if(allocated(tundos%elpt)) then
+      call negf_setup_elpt(this%negf, tundos%elpt, inelastic, inelastic_tol)
+    end if
+
+    if(allocated(tundos%elph) .or. allocated(tundos%elpt)) then
       this%tInelastic = inelastic
+      ! Tolerances not requested by any model keep the libnegf values
+      call get_scba_tolerances(this%negf, default_elastic_tol, default_inelastic_tol)
+      if (elastic_tol == huge(1.0_dp)) elastic_tol = default_elastic_tol
+      if (inelastic_tol == huge(1.0_dp)) inelastic_tol = default_inelastic_tol
+      call set_scba_tolerances(this%negf, elastic_tol, inelastic_tol)
     end if
 
     if(allocated(tundos%bp)) then
       call negf_setup_bp(this%negf, tundos%bp)
     end if
 
-  end subroutine setup_dephasing
+  end subroutine setup_interactions
 
 
   !> Initialise electron-phonon coupling model
-  subroutine negf_setup_elph(negf, elph, inelastic)
+  subroutine negf_setup_elph(negf, elph, inelastic, elastic_tol, inelastic_tol)
 
     !> NEGF container
     type(TNegf), intent(inout) :: negf
@@ -487,12 +510,17 @@ contains
     !> el-ph coupling structure
     type(TElPh), intent(in) :: elph(:)
 
-    !> on return if any interaction is inelastic
+    !> set to true if any interaction is inelastic
     logical, intent(inout) :: inelastic
+
+    !> SCBA tolerance for elastic models, lowered to the tightest requested value
+    real(dp), intent(inout) :: elastic_tol
+
+    !> SCBA tolerance for inelastic models, lowered to the tightest requested value
+    real(dp), intent(inout) :: inelastic_tol
 
     integer :: ii
     real(dp) :: kbT, deltaz
-    real(dp) :: elastic_tol, inelastic_tol
 
     kbT = 0.0_dp
     do ii = 1, size(negf%cont)
@@ -500,9 +528,6 @@ contains
     end do
     kbT = kbT/size(negf%cont)
     deltaz = 0.01_dp
-    inelastic = .false.
-    elastic_tol = 10.0
-    inelastic_tol = 10.0
 
     do ii = 1, size(elph)
       write(stdOut,*)
@@ -540,10 +565,39 @@ contains
         call error("Electron-phonon model is not supported ")
       end select
     end do
-    call set_scba_tolerances(negf, elastic_tol, inelastic_tol)
 
   end subroutine negf_setup_elph
 
+
+  !> Initialise electron-photon coupling model
+  subroutine negf_setup_elpt(negf, elpt, inelastic, inelastic_tol)
+
+    !> NEGF container
+    type(TNegf), intent(inout) :: negf
+
+    !> el-photon coupling structure
+    type(TElPt), intent(in) :: elpt(:)
+
+    !> set to true if any interaction is inelastic
+    logical, intent(inout) :: inelastic
+
+    !> SCBA tolerance for inelastic models, lowered to the tightest requested value
+    real(dp), intent(inout) :: inelastic_tol
+
+    integer :: ii
+
+    do ii = 1, size(elpt)
+      write(stdOut,*)
+      write(stdOut,*) 'Setting electron-photon interaction'
+      call set_elphoton(negf, elpt(ii)%coupling, elpt(ii)%cell_vol, elpt(ii)%refractive_index, &
+            & elpt(ii)%wq, elpt(ii)%intensity, elpt(ii)%poldir, elpt(ii)%scba_niter, elpt(ii)%kbT, &
+            & elpt(ii)%nfreq, elpt(ii)%tExcludeSCC, elpt(ii)%tSpontEmission, elpt(ii)%tTridiagonal, &
+            & elpt(ii)%model)
+      if ( elpt(ii)%scba_tol < inelastic_tol ) inelastic_tol = elpt(ii)%scba_tol
+      inelastic = .true.
+    end do
+
+  end subroutine negf_setup_elpt
 
   !> Initialise Buttiker Probe dephasing
   subroutine negf_setup_bp(negf, elph)
@@ -1752,7 +1806,7 @@ contains
     end if
 
     if (allocated(ldosMat)) then
-      ! Write Total localDOS on a separate file (optional)
+      ! Write Total localDOS on separate files (optional)
       if (tIoProc .and. tWriteLDOS) then
     @:ASSERT(allocated(regionLabelLDOS))
         call write_files(this%negf, ldosMat, ldosSKRes, nS, kpoints, kWeights, regionLabelLDOS)
@@ -1864,9 +1918,10 @@ contains
 
       call get_params(this%negf, params)
       params%mu(1:ncont) = mu(1:ncont,1)
+      params%dump_pdos = tWriteLDOS
       call set_params(this%negf, params)
-      call destroy_HS(this%negf)
 
+      call destroy_HS(this%negf)
       call create_HS(this%negf, nKS)
 
       do iKS = 1, nKS
