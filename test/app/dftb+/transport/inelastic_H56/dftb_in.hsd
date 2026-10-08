@@ -68,6 +68,8 @@ Interactions {
      PhononFrequency [eV] = 0.14
      EpsInfinity = 1.0
      Eps0 = 3.0
+     CellVolume = 1.0
+     Lattice_z = 1.0
      ScreeningLength = 10.0
      MaxSCBAIterations = 50
      SCBATolerance = 1e-7
