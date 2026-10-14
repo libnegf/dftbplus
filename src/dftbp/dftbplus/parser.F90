@@ -6840,15 +6840,12 @@ contains
       call convertUnitHsd(char(modifier), energyUnits, field, tmp)
       elph%wq = tmp
 
-      call getChildValue(node, "CellVolume", elph%cell_vol, 0.0_dp, modifier=modifier,&
+      call getChildValue(node, "CellVolume", elph%cell_vol, 1.0_dp, modifier=modifier,&
           & child=field)
       call convertUnitHsd(char(modifier), volumeUnits, field, elph%cell_vol)
-      call getChildValue(node, "Lattice_z", elph%a0, 0.0_dp, modifier=modifier,child=field)
+      call getChildValue(node, "Lattice_z", elph%a0, 1.0_dp, modifier=modifier,child=field)
       call convertUnitHsd(char(modifier), lengthUnits, field, elph%a0)
 
-      if (elph%cell_vol <= 0.0_dp .or. elph%a0 <= 0.0_dp) then
-         call detailedError(node, "CellVolume and Lattice_z must be defined > 0.0")
-      end if
       call getChildValue(node, "Umklapp", elph%tUmklapp, .false.)
       call getChildValue(node, "KSymmetry", elph%tKSymmetry, .true.)
       call getChildValue(node, "Tridiagonal", elph%tTridiagonal, .true.)
@@ -6947,7 +6944,7 @@ contains
             & child=field)
       call convertUnitHsd(char(modifier), volumeUnits, field, elpt%cell_vol)
 
-      call getChildValue(node, "Lattice_z", elpt%a0, 0.0_dp, modifier=modifier,child=field)
+      call getChildValue(node, "Lattice_z", elpt%a0, 1.0_dp, modifier=modifier,child=field)
       call convertUnitHsd(char(modifier), lengthUnits, field, elpt%a0)
 
       allocate(elpt%coupling(1))
@@ -6970,9 +6967,6 @@ contains
       case default
         call detailedError(node, "Coupling definition unknown: "//char(method))
       end select
-       
-      print*, "Photon coupling: ", elpt%coupling 
-
 
     end subroutine read_common_part
 
