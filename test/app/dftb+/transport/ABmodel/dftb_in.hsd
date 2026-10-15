@@ -1,0 +1,90 @@
+Geometry = GenFormat {
+    <<< "28h.gen" 
+}
+
+
+Hamiltonian = DFTB {     # DFTB Hamiltonian
+  SCC = No                 # Use self consistent charges
+  #SCCTolerance = 1.0e-8     # Tolerance for charge consistence
+  #MaxSCCIterations = 100      # Nr. of maximal SCC iterations
+  #ReadInitialCharges = Yes
+  #ConvergentSCCOnly=No  
+  #Mixer = Broyden {     # Broyden mixer for charge mixing
+  #  MixingParameter = 0.2     # Mixing parameter
+  #}
+
+  #KPointsAndWeights = SupercellFolding{
+  #  4 0 0
+  #  0 1 0 
+  #  0 0 1 
+  # 0.5 0.0 0.0 
+  #}
+  
+  SlaterKosterFiles = {
+    H0-H0="./H0-H0-noS.skf"
+    H0-H1="./H0-H1-noS-0.skf"
+    H1-H0="./H0-H1-noS-0.skf"
+    H1-H1="./H1-H1-noS.skf"
+  }
+  
+  MaxAngularMomentum = {           # Maximal l-value of the various species 
+     H0 = "s" 
+     H1 = "s" 
+  }
+
+  Filling = Fermi {                   # No temperature
+    Temperature [Kelvin] = 0.0
+  }
+  
+  Solver = GreensFunction{
+     ContourPoints = 0 0 
+     RealAxisPoints = 0
+     EnclosedPoles = 0
+  }
+}
+
+Interactions{
+  KSymmetry = No 
+  ElectronPhoton{
+      Coupling [eV] = Constant { 4.0 }
+      PhotonFrequency [eV] = 2.0
+      MaxSCBAIterations = 50 
+      SCBATolerance = 1e-6
+      Tridiagonal = No 
+  }
+}
+
+
+Parallel{
+  UseOmpThreads=Yes
+  Groups = 1 
+}
+
+Options = {
+   WriteDetailedXML = Yes
+}
+ 
+Transport{
+   Device{
+     AtomRange = 1 56
+     FirstLayerAtoms = 1 3 5 7 9 11 13 15 17 19 21 23 25 27 29 31 33 35 37 39 41 43 45 47 49 51 53 55
+   }
+   Contact{
+     Id = "drain"
+     AtomRange = 57 60
+    #Potential [eV] = 0.0
+    #FermiLevel [eV] = 0.0
+   }
+   Contact{
+     Id = "source"
+     AtomRange = 61 64
+    #Potential [eV] = 0.0
+    #FermiLevel [eV] = 0.0
+   }
+   #Task= contactHamiltonian{
+   #  contactId = "drain"
+   #}
+   #WriteBinaryContact=No
+   ReadBinaryContact=No
+ }
+ 
