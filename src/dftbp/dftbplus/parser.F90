@@ -6629,14 +6629,9 @@ contains
       end if
     end do
 
-    call getChildValue(node, "KSymmetry", tReduceByKInversion, .false.)
-
-    if (allocated(tundos%elph)) then
-      tundos%elph(:)%tKSymmetry = tReduceByKInversion
-    end if
-    if (allocated(tundos%elpt)) then
-      tundos%elpt(:)%tKSymmetry = tReduceByKInversion
-    end if
+    ! k -> -k symmetry is global: the k-mesh is either fully generated or reduced by inversion
+    call getChildValue(node, "KSymmetry", tundos%tKSymmetry, .false.)
+    tReduceByKInversion = tundos%tKSymmetry
 
   end subroutine readInteractions
 
@@ -6847,7 +6842,6 @@ contains
       call convertUnitHsd(char(modifier), lengthUnits, field, elph%a0)
 
       call getChildValue(node, "Umklapp", elph%tUmklapp, .false.)
-      call getChildValue(node, "KSymmetry", elph%tKSymmetry, .true.)
       call getChildValue(node, "Tridiagonal", elph%tTridiagonal, .true.)
 
       call readCoupling(node, elph, geom, orb, tp)
@@ -6930,7 +6924,6 @@ contains
       call getChildValue(node, "SpontaneousEmission", elpt%tSpontEmission, .true.)
 
       call getChildValue(node, "NumberFrequencies", elpt%nFreq, 40)
-      elpt%tKSymmetry = .true.
 
       call getChildValue(node, "RefractiveIndex", elpt%refractive_index, default=1.0_dp)
 
