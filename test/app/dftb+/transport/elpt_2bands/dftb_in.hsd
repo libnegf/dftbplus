@@ -1,0 +1,162 @@
+Geometry = GenFormat {
+    <<< "28h.gen" 
+}
+
+
+Hamiltonian = DFTB {     # DFTB Hamiltonian
+  SCC = Yes                 # Use self consistent charges
+  SCCTolerance = 1.0e-8     # Tolerance for charge consistence
+  MaxSCCIterations = 1      # Nr. of maximal SCC iterations
+  ReadInitialCharges = Yes 
+  ConvergentSCCOnly=No  
+  #Mixer = Broyden {     # Broyden mixer for charge mixing
+  #  MixingParameter = 0.2     # Mixing parameter
+  #}
+
+  Electrostatics = Poisson {
+    Poissonbox [Angstrom] = 10.0 10.0 100.0
+    MinimalGrid = 0.3 0.3 0.3
+    AtomDensityCutoff [Angstrom] = 5.0
+    CutoffCheck = No 
+  }
+
+  # Used in contact calculations 
+  #KPointsAndWeights = SupercellFolding{
+  #  64 0 0
+  #  0 1 0 
+  #  0 0 1 
+  # 0.5 0.0 0.0 
+  #}
+  
+  SlaterKosterFiles = {
+    H0-H0="./H0-H0-noS.skf"
+    H0-H1="./H0-H1-noS-0.skf"
+    H1-H0="./H0-H1-noS-0.skf"
+    H1-H1="./H1-H1-noS.skf"
+  }
+  
+  MaxAngularMomentum = {           # Maximal l-value of the various species 
+     H0 = "s" 
+     H1 = "s" 
+  }
+  
+  CustomisedOccupations{
+    #     n  246....       p
+    # H1: OO|OOOOOOOOOOOOO|OO  
+    # H0: OO|OOOOOOOOOOOOO|OO
+    #        135....
+    # ----------------------------------------------------------
+    # p-doping side 
+    # ----------------------------------------------------------
+    ReferenceOccupation{
+      # Atoms of type H0 (valence)
+      Atoms={29 31 33 35 37 39 41 43 45 47 49 51 53 55 57 59 }
+      s = 1.999
+    }
+    ReferenceOccupation{
+      # Atoms of type H1 (conduction)
+      Atoms={30 32 34 36 38 40 42 44 46 48 50 52 54 56 58 60 }
+      s = 0.000 
+    }
+    # ----------------------------------------------------------
+    # n-doping side
+    # ----------------------------------------------------------
+    ReferenceOccupation{
+      # Atoms of type H0 (valence) 
+      Atoms={ 1 3 5 7 9  11 13 15 17 19 21 23 25 27 61 63}
+      s = 2.000 
+    }
+    ReferenceOccupation{
+      # Atoms of type H1 (conduction) 
+      Atoms={ 2 4 6 8 10 12 14 16 18 20 22 24 26 28 62 64}
+      s = 0.001
+    }
+  }
+
+  Filling = Fermi {                   # No temperature
+    Temperature [Kelvin] = 300.0
+  }
+  
+  Solver = GreensFunction{
+    verbosity =31
+    contourPoints = {22 26}
+    #realAxisStep [eV] = 1e-2 
+    realAxisPoints = 200 
+    EnclosedPoles = 3 
+    FermiCutoff = 10 
+  }
+
+  #!Solver = DivideAndConquer{}
+  #!Electrostatics=gammafunctional{}
+}
+
+Interactions{
+#  KSymmetry = No 
+#  ElectronPhonon{
+#    Inelastic=nonpolaroptical{
+#       Coupling [eV] = Constant { 0.0 }
+#       PhononFrequency [eV] = 0.020
+#       CellVolume = 1.0
+#       Lattice_z = 1.0
+#       MaxSCBAIterations = 1 
+#       SCBATolerance = 1e-6
+#       Tridiagonal = No 
+#    }
+#  }
+    ElectronPhoton=Debug{
+        Coupling = Constant { 1.0 }
+        PhotonFrequency [eV] = 2.0
+        CellVolume = 1000.0
+        LightIntensity [W/cm^2] = 5e7 
+        MaxSCBAIterations = 10
+        #ExcludeFromSCC = Yes  
+        SCBATolerance = 1e-6
+        Tridiagonal = No 
+    }
+}
+
+Analysis = {
+  LayerCurrents {
+    #verbosity = 99
+    EnergyRange [eV] = -2.50  1.50
+    EnergyStep [eV] = 0.02
+    writeLDOS = Yes
+  }
+}
+
+Parallel{
+  UseOmpThreads=Yes
+  Groups = 1 
+}
+
+Options = {
+   WriteDetailedXML = Yes
+   WriteAutotestTag = Yes
+   WriteChargesAsText = Yes
+   ReadChargesAsText = Yes
+}
+ 
+
+Transport{
+   Device{
+     AtomRange = 1 56
+     FirstLayerAtoms = 1 3 5 7 9 11 13 15 17 19 21 23 25 27 29 31 33 35 37 39 41 43 45 47 49 51 53 55
+   }
+   Contact{
+     Id = "n-side"
+     AtomRange = 61 64
+     Potential [eV] = 0.0
+   }
+   Contact{
+     Id = "p-side"
+     AtomRange = 57 60
+     Potential [eV] = 0.01  #1.1616 
+   }
+   #Task= contactHamiltonian{
+   #  contactId = "p-side"
+   #}
+   #WriteBinaryContact=No
+   Task= uploadContacts{}
+   ReadBinaryContact=No
+ }
+ 
