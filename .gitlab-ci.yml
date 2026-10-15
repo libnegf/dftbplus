@@ -2,7 +2,7 @@
   parallel:
     matrix:
       - DISTRO: [debian]
-        MPI: [mpich]
+        MPI: [openmpi]
         DEVICE: [cpu, gpu]
         BITS: [32, 64]
   tags:
@@ -29,7 +29,7 @@ build:
        -DWITH_MPI=ON \
        -DWITH_TRANSPORT=ON
        -DWITH_TRANSPORT_GPU="$WITH_GPU"
-       -DSCALAPACK_LIBRARY=scalapack-mpich
+       -DSCALAPACK_LIBRARY=scalapack-openmpi
        -DMPIEXEC_MAX_NUMPROCS=8
        -B "$BUILD_DIR"
        -S .
