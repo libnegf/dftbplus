@@ -89,9 +89,6 @@ module dftbp_transport_negfvars
     !> whether Umklapp have to be added up
     logical :: tUmklapp = .false.
 
-    !> whether k -> -k symmetry
-    logical :: tKSymmetry = .true.
-
     !> whether tri-diagonal blocks are computed
     logical :: tTridiagonal = .true.
 
@@ -150,9 +147,6 @@ module dftbp_transport_negfvars
 
     !> whether Umklapp have to be added up
     logical :: tUmklapp = .false.
-
-    !> whether k -> -k symmetry
-    logical :: tKSymmetry = .true.
 
     !> whether tri-diagonal blocks are computed
     logical :: tTridiagonal = .true.
@@ -277,6 +271,10 @@ module dftbp_transport_negfvars
 
     !> Specify which integration type for current
     integer :: integration = integration_type%trapezoidal
+
+    !> Whether k -> -k symmetry is used (k-mesh reduced by inversion).
+    !> Global for all interactions: DFTB+ generates either the full or the reduced k-mesh
+    logical :: tKSymmetry = .false.
 
   end type TNEGFTunDos
 
@@ -541,6 +539,7 @@ contains
     gOUT%writeLDOS = gIN%writeLDOS
     gOUT%writeTUNN = gIN%writeTUNN
     gOUT%broadeningDelta = gIN%broadeningDelta
+    gOUT%tKSymmetry = gIN%tKSymmetry
 
     ! copy tundos%elph
     if (allocated(gIN%elph)) then
