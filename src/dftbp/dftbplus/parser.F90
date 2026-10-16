@@ -6146,7 +6146,7 @@ contains
     call getChildValue(pNode, "Delta", greendens%delta, 1.0e-5_dp, modifier=modifier, child=field)
     call convertUnitHsd(char(modifier), energyUnits, field, greendens%delta)
     call getChildValue(pNode, "ReadSurfaceGFs", greendens%readSGF, .false.)
-    call getChildValue(pNode, "SaveSurfaceGFs", greendens%saveSGF, .not.greendens%readSGF)
+    call getChildValue(pNode, "SaveSurfaceGFs", greendens%saveSGF, .false.)
     call getChildValue(pNode, "ContourPoints", greendens%nP(1:2), [ 20, 20 ])
     call getChildValue(pNode, "EnclosedPoles",  greendens%nPoles, 3)
     call getChildValue(pNode, "LowestEnergy", greendens%enLow, -2.0_dp, modifier=modifier,&

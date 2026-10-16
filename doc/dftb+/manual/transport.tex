@@ -423,7 +423,7 @@ The following table gives the important parameters of the solver:
   \kw{EnclosedPoles} & i & & 3 & \\
   \kw{RealAxisStep} & r & RealAxisPoints=undefined & 6.65E-4 & \\
   \kw{RealAxisPoints} & r & RealAxisStep=undefined &  & \\
-  \kw{SaveSurfaceGFs} & l & & Yes & \\
+  \kw{SaveSurfaceGFs} & l & & No & \\
   \kw{ReadSurfaceGFs} & l & & No & \\
   \kw{FirstLayerAtoms} & i+ & Transport = undefined & 1 & \\
   \kw{FermiLevel} & r& Transport = undefined &  & \\
@@ -458,18 +458,19 @@ only (see section~\ref{sec:transport.geometry}).
   temperature and bias. Note: \kw{RealAxisStep} and \kw{RealAxisPoints} cannot
   both be defined at the same time.
 
-\item[\is{SaveSurfaceGFs}] As the SCC cycle usually needs to repeat the
-  calculation of the Green's function at given energy points and as the surface
-  Green functions do not change during the SCC cycle, this flag allows for
-  saving the surface Green functions to disk and so save computational time on
-  every SCC cycle after the first.
+\item[\is{SaveSurfaceGFs}] The surface Green's functions do not change during
+  the SCC cycle, therefore they are computed at the first SCC cycle and reused in
+  the following ones. By default they are kept in memory. This flag stores them
+  on disk instead, which reduces the memory needed for large contacts and allows
+  reading them in a later run with \kw{ReadSurfaceGFs}.
 
 \item[\is{ReadSurfaceGFs}] Loads the surface Green's function from a file at the
   the first SCC cycle. Note that this operation only makes sense if the energy
   integration points are identical to the calculation used to generate the
   surface Green's function files. The code does not verify whether this
   condition is fulfilled. In general there is no need to modify the defaults for
-  \kw{ReadSurfaceGFs} and \kw{SaveSurfaceGFs}.
+  \kw{ReadSurfaceGFs} and \kw{SaveSurfaceGFs}, unless the memory needed to store
+  the surface Green's functions is too large.
 
 \item[\is{FirstLayerAtoms}] As described in Device block. Can be specified only
   if no \kw{Transport} block exists.  {\bf Note:} the Green solver can be used

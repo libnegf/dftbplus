@@ -285,17 +285,18 @@ contains
       ! NOTE: for the moment in tunneling and dos SGF are always
       ! recomputed because bias may change points and errors are easy
 
-      ! Read G.F. from very first iteration
+      ! The SGFs are computed and stored at the first SCC iteration, then retrieved.
+      ! They are kept in memory, unless they are saved to or read from disk.
       if (greendens%readSGF) then
+        ! Read G.F. from very first iteration
         params%readOldDM_SGFs = READ_SGF
-      end if
-      ! Compute G.F. at every iteration
-      if (.not.greendens%readSGF .and. .not.greendens%saveSGF) then
-        params%readOldDM_SGFs = COMP_SGF
-      end if
-      ! Default Write on first iter
-      if (.not.greendens%readSGF .and. greendens%saveSGF) then
+      else
         params%readOldDM_SGFs = COMPSAVE_SGF
+      end if
+      if (greendens%readSGF .or. greendens%saveSGF) then
+        params%SGFcache = 0
+      else
+        params%SGFcache = 1
       end if
 
       params%n_poles = greendens%nPoles
