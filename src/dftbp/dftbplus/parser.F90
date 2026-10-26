@@ -7157,7 +7157,7 @@ contains
     ncont = transpar%ncont
 
     call getChildValue(root, "Verbosity", tundos%verbose, 51)
-    call getChildValue(root, "WriteLDOS", tundos%writeLDOS, .true.)
+    call getChildValue(root, "WriteLDOS", tundos%writeLDOS, .false.)
     call getChildValue(root, "WriteTunn", tundos%writeTunn, .true.)
 
     call getChildValue(root, "Delta", tundos%delta, &
