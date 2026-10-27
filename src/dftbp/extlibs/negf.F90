@@ -23,7 +23,7 @@ module dftbp_extlibs_negf
       & interaction_models, set_elph_polaroptical, set_elph_nonpolaroptical, set_elphoton, &
       & init_basis, compute_layer_current, compute_meir_wingreen, set_scba_tolerances, create_dm, &
       & get_scba_tolerances, destroy_dm, create_hs, destroy_hs, copy_hs, pass_hs, copy_dm, get_dm,&
-      & integration_type
+      & integration_type, print_timers
 #:if WITH_MPI
   use libnegf, only : negf_mpi_init, negf_cart_init
 #:endif

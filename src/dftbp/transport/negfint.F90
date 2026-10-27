@@ -25,7 +25,7 @@ module dftbp_transport_negfint
       & set_elph_s_dephasing, set_ldos_indexes, set_params, set_scratch, writememinfo, create_dm,&
       & writepeakinfo, printcsr, set_elph_polaroptical, set_elph_nonpolaroptical, set_kpoints, &
       & init_basis, compute_layer_current, compute_meir_wingreen, set_scba_tolerances, get_dm,&
-      & copy_dm, destroy_dm, set_elphoton, get_scba_tolerances
+      & copy_dm, destroy_dm, set_elphoton, get_scba_tolerances, print_timers
   use dftbp_io_formatout, only : writeXYZFormat
   use dftbp_io_message, only : error, warning
   use dftbp_math_eigensolver, only : heev
@@ -656,6 +656,9 @@ contains
   !> Destroy CSR matrices
   subroutine TNegfInt_final(this)
     type(TNegfInt), intent(inout) :: this
+
+    ! Collective over the libNEGF communicator: summary written by its lead process
+    call print_timers(this%negf, stdOut)
 
     write(stdOut, *)
     write(stdOut, *) 'Release NEGF memory:'
