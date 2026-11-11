@@ -18,9 +18,6 @@ build:
   extends: .setup
   stage: build
   script:
-    - git submodule set-branch --branch 127-development-of-elphoton-se
-        -- external/libnegf/origin
-    - git submodule update --remote external/libnegf/origin
     - mkdir "$BUILD_DIR"
     - WITH_GPU="$( [ "$DEVICE" = 'gpu' ] && echo ON || echo OFF )"
     - cmake
