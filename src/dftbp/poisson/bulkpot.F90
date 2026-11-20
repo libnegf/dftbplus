@@ -77,7 +77,7 @@ contains
 
    type(super_array) :: SA
 
-   character(*), parameter :: formatStr = '(a, ":", t30, g14.10)'
+   character(*), parameter :: formatStr = '(a, ":", t30, g15.7)'
 
    write(stdOut,"(I0,1X,I0,1X,I0)") SA%a,SA%b,SA%c
    write(stdOut,"(3E20.12)") SA%dla,SA%dlb,SA%dlc

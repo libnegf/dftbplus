@@ -24,7 +24,7 @@ set(Fortran_FLAGS_RELEASE "-O2 -ip"
 set(Fortran_FLAGS_RELWITHDEBINFO "-g ${Fortran_FLAGS_RELEASE}"
   CACHE STRING "Fortran compiler flags for Release build")
 
-set(Fortran_FLAGS_DEBUG "-g -warn all -stand f08 -check -diag-error-limit 1 -traceback"
+set(Fortran_FLAGS_DEBUG "-g -warn all,noexternal,nounused -stand f08 -132 -check -diag-error-limit 1 -traceback"
   CACHE STRING "Fortran compiler flags for Debug build")
 
 # Use intrinsic Fortran 2008 erf/erfc functions

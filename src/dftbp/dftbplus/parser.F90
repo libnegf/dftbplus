@@ -16,7 +16,7 @@ module dftbp_dftbplus_parser
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_unitconversion, only : lengthUnits, energyUnits, forceUnits, pressureUnits,&
       & timeUnits, EFieldUnits, freqUnits, massUnits, VelocityUnits, dipoleUnits, chargeUnits,&
-      & volumeUnits, angularUnits
+      & volumeUnits, angularUnits, lightIntensityUnits
   use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getCovalentRadius, cnType
   use dftbp_dftb_dftbplusu, only : plusUFunctionals
   use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
@@ -81,7 +81,7 @@ module dftbp_dftbplus_parser
 #:endif
 #:if WITH_TRANSPORT
   use dftbp_transport_negfvars, only : TTransPar, TNEGFGreenDensInfo, TNEGFTunDos, TElPh,&
-      & ContactInfo, interaction_models, integration_type
+      & TElPt, ContactInfo, interaction_models, integration_type
 #:endif
   implicit none
 
@@ -160,7 +160,7 @@ contains
 
     type(TOrbitals) :: orb
     type(fnode), pointer :: root, tmp, driverNode, hamNode, analysisNode, child, dummy
-    logical :: tReadAnalysis, tBadIntegratingKpoints
+    logical :: tReadAnalysis, tBadIntegratingKpoints, tInelasticTransport
     integer, allocatable :: implicitParserVersion
 
     write(stdout, '(A,1X,I0,/)') 'Parser version:', parserVersion
@@ -204,14 +204,20 @@ contains
         & input%ginfo%greendens, input%poisson)
 
     ! NOTE: Read Dephasing must be after because of slako%orb
-    call getChild(root, "Dephasing", child, requested=.false.)
+    call getChild(root, "Interactions", child, requested=.false.)
     if (associated(child)) then
       !call detailedError(child, "Be patient... Dephasing feature will be available soon!")
-      call readDephasing(child, input%slako%orb, input%geom, input%transpar, input%ginfo%tundos, &
+      call readInteractions(child, input%slako%orb, input%geom, input%transpar, input%ginfo%tundos, &
             & input%ctrl%tReduceByKInversion)
 
+      if (allocated(input%ginfo%tundos%elph)) then
+         if (any(input%ginfo%tundos%elph(:)%wq > 0.0_dp)) then
+            tInelasticTransport = .true.
+         end if
+      end if
+
       ! read k-sampling again for non-symmetric reduction
-      call readKPoints(hamNode, input%ctrl, input%geom, tBadIntegratingKPoints)
+      call readKPoints(hamNode, input%ctrl, input%geom, tBadIntegratingKPoints, tInelasticTransport)
     end if
 
   #:else
@@ -2704,7 +2710,7 @@ contains
 
 
   !> K-Points
-  subroutine readKPoints(node, ctrl, geo, tBadIntegratingKPoints)
+  subroutine readKPoints(node, ctrl, geo, tBadIntegratingKPoints, tInelasticTransport)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2718,6 +2724,9 @@ contains
     !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
     logical, intent(out) :: tBadIntegratingKPoints
 
+    !> Whether there is an inelastic transport mechanism: Need an homogeneus grid sampling
+    logical, intent(in), optional :: tInelasticTransport
+
     integer :: ii
     character(lc) :: errorStr
 
@@ -2727,7 +2736,7 @@ contains
     ! K-Points
     if (geo%tPeriodic) then
 
-      call getEuclideanKSampling(tBadIntegratingKPoints, ctrl, node, geo)
+      call getEuclideanKSampling(tBadIntegratingKPoints, ctrl, node, geo, tInelasticTransport)
 
     else if (geo%tHelical) then
 
@@ -2758,7 +2767,7 @@ contains
 
 
   !> K-points in Euclidean space
-  subroutine getEuclideanKSampling(tBadIntegratingKPoints, ctrl, node, geo)
+  subroutine getEuclideanKSampling(tBadIntegratingKPoints, ctrl, node, geo, tInelasticTransport)
 
     !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
     logical, intent(out) :: tBadIntegratingKPoints
@@ -2772,6 +2781,10 @@ contains
     !> Geometry structure
     type(TGeometry), intent(in) :: geo
 
+    !> Whether there is an inelastic transport mechanism: Need an homogeneus grid sampling
+    logical, intent(in), optional :: tInelasticTransport
+
+
     type(fnode), pointer :: value1, child
     type(string) :: buffer, modifier
     integer :: ind, ii, jj, kk
@@ -2781,6 +2794,7 @@ contains
     type(TListRealR1) :: lr1
     integer, allocatable :: tmpI1(:)
     real(dp), allocatable :: kpts(:,:)
+    logical :: dimOK(3)
 
     call getChildValue(node, "KPointsAndWeights", value1, child=child, &
         &modifier=modifier)
@@ -2802,6 +2816,30 @@ contains
           &> 1e-6_dp)) then
         call detailedError(value1, "The components of the supercell matrix &
             &must be integers.")
+      end if
+      if (present(tInelasticTransport)) then
+        if (tInelasticTransport) then
+          if (coeffsAndShifts(1,2) /= 0.0_dp .or. coeffsAndShifts(1,3) /= 0.0_dp .or. &
+            & coeffsAndShifts(2,1) /= 0.0_dp .or. coeffsAndShifts(2,3) /= 0.0_dp .or. &
+            & coeffsAndShifts(3,1) /= 0.0_dp .or. coeffsAndShifts(3,2) /= 0.0_dp) then
+            call detailedError(value1, "With inelastic transport the indices must be diagonal")
+          end if
+          dimOK = .false.
+          do ii = 1, 3
+            if (coeffsAndShifts(ii,ii) == 1.0_dp .and. coeffsAndShifts(ii,4) == 0.0_dp) then
+              dimOK(ii) = .true.
+            else if (modulo(coeffsAndShifts(ii,ii),2.0_dp) == 0 .and. &
+                 & coeffsAndShifts(ii,4) == 0.5_dp) then
+              dimOK(ii) = .true.
+            end if
+          end do
+          if (.not. all(dimOK)) then
+            write(stdOut, '("Inelastic transport requires a uniform k-sampling")')
+            write(stdOut, '("Ensure you define either n == 1 and shift == 0.0")')
+            write(stdOut, '("or an even n and shift == 0.5")')
+            call detailedError(value1,"Invalid kpoints for inelastic interactions")
+          end if
+        end if
       end if
       call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
             & ctrl%kPoint, ctrl%kWeight, reduceByInversion=ctrl%tReduceByKInversion)
@@ -5102,7 +5140,7 @@ contains
         if (.not.associated(child) .and. &
           & ctrl%solver%isolver==electronicSolverTypes%OnlyTransport) then
           call detailedError(node, "The TransportOnly solver requires either &
-               TunnelingAndDos or LayerCurrent or MeirWingreen to be present.")
+              & TunnelingAndDos or LayerCurrent or MeirWingreen to be present.")
         end if
       end if
     end if
@@ -6549,9 +6587,8 @@ contains
 
   end subroutine getContactVector
 
-
-  !> Read dephasing block
-  subroutine readDephasing(node, orb, geom, tp, tundos, tReduceByKInversion)
+  !> Read block for electron-phonon interactions
+  subroutine readInteractions(node, orb, geom, tp, tundos, tReduceByKInversion)
 
     !> Input tree node
     type(fnode), pointer :: node
@@ -6570,6 +6607,53 @@ contains
 
     !> Controls whether the k-sampling should be reduced by inversion symmetry
     logical, intent(inout) :: tReduceByKInversion
+
+
+    type(fnode), pointer :: value1, child
+    type(fnodeList), pointer :: children_elpt
+    integer :: nElPt, ii
+
+    call getChild(node, "ElectronPhonon", child, requested=.false.)
+    if (associated(child)) then
+        call readElPhonons(child, orb, geom, tp, tundos)
+    end if
+
+    call getChildren(node, "ElectronPhoton", children_elpt)
+    nElPt = getLength(children_elpt)
+    allocate(tundos%elpt(nElPt))
+
+    do ii = 1, nElPt
+      call getItem1(children_elpt, ii, child)
+      if (associated(child)) then
+        call readElPhoton(child, tundos%elpt(ii), geom, orb, tp)
+      end if
+    end do
+
+    ! k -> -k symmetry is global: the k-mesh is either fully generated or reduced by inversion
+    call getChildValue(node, "KSymmetry", tundos%tKSymmetry, .false.)
+    tReduceByKInversion = tundos%tKSymmetry
+
+  end subroutine readInteractions
+
+
+  !> Read block for electron-phonon interactions
+  subroutine readElPhonons(node, orb, geom, tp, tundos)
+
+    !> Input tree node
+    type(fnode), pointer :: node
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Atomic geometry, including the contact atoms
+    type(TGeometry), intent(in) :: geom
+
+    !> Parameters of the transport calculation
+    type(TTransPar), intent(inout) :: tp
+
+    !> Parameters of tunneling and dos calculation
+    type(TNEGFTunDos), intent(inout) :: tundos
+
 
     type(fnode), pointer :: value1, child
     type(fnodeList), pointer :: children_el, children_inel
@@ -6593,7 +6677,6 @@ contains
       call getItem1(children_inel, ii, child)
       if (associated(child)) then
         call readInelastic(child, tundos%elph(nEl+ii), geom, orb, tp)
-        tReduceByKInversion = .false.
       end if
     end do
 
@@ -6613,7 +6696,7 @@ contains
     tp%tNoGeometry = .false.
     tp%NumStates = 0
 
-  end subroutine readDephasing
+  end subroutine readElPhonons
 
 
   !> Read Electron-Phonon blocks (for density and/or current calculation)
@@ -6712,13 +6795,24 @@ contains
           & child=field)
       call convertUnitHsd(char(modifier), lengthUnits, field, tmp)
       elph%q0 = 1.0_dp/tmp
+    case ("polaroptical2d")
+      elph%model = interaction_models%polaroptical2D
+      elph%tModel2D = .true.
+      call getChild(child, "PolarOptical2D", child2)
+      call read_common_part(child2)
+      call getChildValue(child2, "Sigma", elph%sigma, 0.0_dp, modifier=modifier,&
+          & child=field)
+      call convertUnitHsd(char(modifier), lengthUnits, field, elph%sigma)
     case ("nonpolaroptical")
       elph%model = interaction_models%nonpolaroptical
       call getChild(child, "NonPolarOptical", child2)
       call read_common_part(child2)
       call getChildValue(child2, "DeformationPotential", elph%D0, 0.0_dp, modifier=modifier,&
             & child=field)
-      call convertUnitHsd(char(modifier), energyUnits, field, elph%D0)
+      call convertUnitHsd(char(modifier), forceUnits, field, elph%D0)
+      call getChildValue(child2, "Mass_cell", elph%Mcell, 0.0_dp, modifier=modifier,&
+            & child=field)
+      call convertUnitHsd(char(modifier), massUnits, field, elph%Mcell)
     case default
       call detailedError(child,"unkown inelastic phonon type: "//char(phonontype))
     end select
@@ -6735,13 +6829,19 @@ contains
       call getChildValue(node, "SCBATolerance", elph%scba_tol, default=1.0d-7)
       call getChildValue(node, "PhononFrequency", tmp, 0.0_dp, modifier=modifier,&
            & child=field)
-      if (tmp == 0.0_dp) then
+      if (tmp <= 0.0_dp) then
          call detailedError(node, "PhononFrequency must be defined > 0.0")
       end if
       call convertUnitHsd(char(modifier), energyUnits, field, tmp)
       elph%wq = tmp
+
+      call getChildValue(node, "CellVolume", elph%cell_vol, 1.0_dp, modifier=modifier,&
+          & child=field)
+      call convertUnitHsd(char(modifier), volumeUnits, field, elph%cell_vol)
+      call getChildValue(node, "Lattice_z", elph%a0, 1.0_dp, modifier=modifier,child=field)
+      call convertUnitHsd(char(modifier), lengthUnits, field, elph%a0)
+
       call getChildValue(node, "Umklapp", elph%tUmklapp, .false.)
-      call getChildValue(node, "KSymmetry", elph%tKSymmetry, .true.)
       call getChildValue(node, "Tridiagonal", elph%tTridiagonal, .true.)
 
       call readCoupling(node, elph, geom, orb, tp)
@@ -6749,6 +6849,121 @@ contains
 
   end subroutine readInelastic
 
+  !> Read block for electron-photon interactions
+  subroutine readElPhoton(node, elpt, geom, orb, tp)
+
+    !> Input node in the tree
+    type(fnode), pointer :: node
+
+    !> container for electron-photon parameters
+    type(TElPt), intent(inout) :: elpt
+
+    !> Geometry type
+    type(TGeometry), intent(in) :: geom
+
+    !> Orbitals infos
+    type(TOrbitals), intent(in) :: orb
+
+    !> Transport parameter type
+    type(TTransPar), intent(in) :: tp
+
+
+    type(fnode), pointer :: field, child, child2
+    type(string) :: modifier, photontype
+
+    ! READ NONPOLAR-OPTICAL, POLAR-OPTICAL
+    call getChildValue(node, "", field, child=child)
+    call getNodeName2(field, photontype)
+
+    select case (char(photontype))
+    case ("laser")
+      elpt%model = interaction_models%laser
+      call getChild(child, "Laser", child2)
+      call read_common_part(child2)
+    case ("solarspectrum")
+      elpt%model = interaction_models%solarspectrum
+      call getChild(child, "Solarspectrum", child2)
+      call read_common_part(child2)
+    case ("blackbody")
+      elpt%model = interaction_models%blackbody
+      call getChild(child, "BlackBody", child2)
+      call read_common_part(child2)
+      call getChildValue(child2, "Temperature", elpt%kbT, modifier=modifier, child=field)
+      call convertUnitHsd(char(modifier), energyUnits, field, elpt%kbT)
+    case ("debug")
+      elpt%model = interaction_models%debugelpt
+      call getChild(child, "Debug", child2)
+      call read_common_part(child2)
+    case default
+      call detailedError(child,"unkown photon type: "//char(photontype))
+    end select
+
+    elpt%defined = .true.
+
+    contains
+    subroutine read_common_part(node)
+      type(fnode), pointer :: node
+
+      type(fnode), pointer :: field, child, val
+      type(string) :: modifier, method
+      real(dp) :: rTmp
+
+      call getChildValue(node, "MaxSCBAIterations", elpt%scba_niter, default=100)
+      call getChildValue(node, "SCBATolerance", elpt%scba_tol, default=1.0d-7)
+      call getChildValue(node, "PhotonFrequency", rTmp, 0.0_dp, modifier=modifier,&
+           & child=field)
+      if (rTmp == 0.0_dp) then
+         call detailedError(node, "PhotonFrequency must be defined > 0.0")
+      end if
+      call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
+      elpt%wq = rTmp
+      call getChildValue(node, "Umklapp", elpt%tUmklapp, .false.)
+      call getChildValue(node, "Tridiagonal", elpt%tTridiagonal, .true.)
+      call getChildValue(node, "ExcludeFromSCC", elpt%tExcludeSCC, .false.)
+
+      call getChildValue(node, "SpontaneousEmission", elpt%tSpontEmission, .true.)
+
+      call getChildValue(node, "NumberFrequencies", elpt%nFreq, 40)
+
+      call getChildValue(node, "RefractiveIndex", elpt%refractive_index, default=1.0_dp)
+
+      call getChildValue(node, "LightIntensity", elpt%intensity, 0.0_dp, modifier=modifier, &
+            & child=field)
+      call convertUnitHsd(char(modifier), lightIntensityUnits, field, elpt%intensity)
+
+      call getChildValue(node, "Polarization", elpt%poldir, default=1)
+
+      call getChildValue(node, "CellVolume", elpt%cell_vol, 1.0_dp, modifier=modifier,&
+            & child=field)
+      call convertUnitHsd(char(modifier), volumeUnits, field, elpt%cell_vol)
+
+      call getChildValue(node, "Lattice_z", elpt%a0, 1.0_dp, modifier=modifier,child=field)
+      call convertUnitHsd(char(modifier), lengthUnits, field, elpt%a0)
+
+      allocate(elpt%coupling(1))
+      elpt%coupling(:) = 0.d0
+
+      call getChildValue(node, "Coupling", val, "", child=child, &
+          & allowEmptyValue=.true., modifier=modifier, dummyValue=.true., list=.false.)
+
+      call getNodeName(val, method)
+
+      select case(char(method))
+      case (textNodeName)
+        call getChildValue(node, "Coupling", rTmp, child=field, modifier=modifier)
+        call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
+        elpt%coupling = rTmp
+      case ("constant")
+        call getChildValue(child, "Constant", rTmp, child=field)
+        call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
+        elpt%coupling = rTmp
+      case default
+        call detailedError(node, "Coupling definition unknown: "//char(method))
+      end select
+
+    end subroutine read_common_part
+
+  end subroutine readElPhoton
 
   !> Read Buettiker probe dephasing blocks (for density and/or current calculation)
   subroutine readDephasingBP(node, elph, geom, orb, tp)
@@ -6863,14 +7078,6 @@ contains
 
     call getNodeName(val, method)
 
-    ! This reads also things like:  "Coupling [eV] = 0.34"
-    !if (is_numeric(char(method))) then
-    !  call getChildValue(node, "Coupling", rTmp, child=field)
-    !  call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
-    !  elph%coupling = rTmp
-    !  return
-    !end if
-
     select case (char(method))
     case ("allorbitals")
       call getChild(child, "AllOrbitals", child2, requested=.false.)
@@ -6950,7 +7157,7 @@ contains
     ncont = transpar%ncont
 
     call getChildValue(root, "Verbosity", tundos%verbose, 51)
-    call getChildValue(root, "WriteLDOS", tundos%writeLDOS, .true.)
+    call getChildValue(root, "WriteLDOS", tundos%writeLDOS, .false.)
     call getChildValue(root, "WriteTunn", tundos%writeTunn, .true.)
 
     call getChildValue(root, "Delta", tundos%delta, &

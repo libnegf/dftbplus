@@ -17,6 +17,7 @@ module dftbp_transport_negfvars
   public :: TTransPar
   public :: ContactInfo
   public :: TElph
+  public :: TElpt
 
   public :: interaction_models
   !> Available interaction_models:
@@ -43,7 +44,66 @@ module dftbp_transport_negfvars
     !> Specify which model in input
     integer :: model = interaction_models%dummy
 
-    !> Coupling strength (?)
+    !> Coupling strength (in energy units)
+    real(dp), allocatable :: coupling(:)
+
+    !> Iterations for self-consistent Born approximation
+    integer :: scba_niter = 0
+
+    !> Iterations for self-consistent Born approximation
+    real(dp) :: scba_tol = 0.0_dp
+
+    !> List of orbital per atom for models = (2,3)
+    integer, allocatable :: orbsperatm(:)
+
+    !> phonon frequency (units of energy)
+    real(dp) :: wq = 0.0_dp
+
+    !> dielectric constant in the high freq limit
+    real(dp) :: eps_inf = 1.0_dp
+
+    !> dielectric constant in the low freq
+    real(dp) :: eps_r = 1.0_dp
+
+    !> screening paramter (inverse length)
+    real(dp) :: q0 = 0.0_dp
+
+    !> deformation potential (force units)
+    real(dp) :: D0 = 0.0_dp
+
+    !> Mass of the cell (mass units)
+    real(dp) :: Mcell = 0.0_dp
+
+    !> Cell volume (volume units)
+    real(dp) :: cell_vol = 0.0_dp
+
+    !> Lattice along transport (length units)
+    real(dp) :: a0 = 0.0_dp
+
+    !> whether it is a 2D PO phonon coupling
+    logical :: tModel2D = .false.
+
+    !> Parameter for 2D PO phonons (length units)
+    real(dp) :: sigma = 0.0_dp
+
+    !> whether Umklapp have to be added up
+    logical :: tUmklapp = .false.
+
+    !> whether tri-diagonal blocks are computed
+    logical :: tTridiagonal = .true.
+
+  end type TElPh
+
+  !> Options for electron-photon model
+  type TElPt
+
+    !> True if filled up with info from an input block
+    logical :: defined = .false.
+
+    !> Specify which model in input
+    integer :: model = interaction_models%dummy
+
+    !> Coupling strength (just a dimensionless prefactor)
     real(dp), allocatable :: coupling(:)
 
     !> Iterations for self-consistent Born approximation
@@ -58,28 +118,40 @@ module dftbp_transport_negfvars
     !> phonon frequency
     real(dp) :: wq = 0.0_dp
 
-    !> dielectric constant in the high freq limit
-    real(dp) :: eps_inf = 1.0_dp
+    !> number of photon frequancies (for solar spectrum and emission spectrum)
+    integer :: nfreq = 0
 
-    !> dielectric constant in the low freq
-    real(dp) :: eps_r = 1.0_dp
+    !> dielectric constant at the optical freq
+    real(dp) :: refractive_index = 1.0_dp
 
-    !> screening paramter
-    real(dp) :: q0 = 0.0_dp
+    !> light intensity (units of Power/surface)
+    real(dp) :: intensity = 0.0_dp
 
-    !> deformation potential
-    real(dp) :: D0 = 0.0_dp
+    !> polarization axis x=1, y=2, z=3
+    integer :: poldir = 1
+
+    !> Cell volume (volume units)
+    real(dp) :: cell_vol = 0.0_dp
+
+    !> Lattice along transport (length units)
+    real(dp) :: a0 = 0.0_dp
+
+    !> Blackbody temperature (energy units)
+    real(dp) :: kbT = 0.0_dp
+
+    !> whether spontaneus emission is included in the calculation
+    logical :: tSpontEmission = .true.
+
+    !> whether exclude from SCC calculation
+    logical :: tExcludeSCC = .false.
 
     !> whether Umklapp have to be added up
     logical :: tUmklapp = .false.
 
-    !> whether k -> -k symmetry
-    logical :: tKSymmetry = .true.
-
     !> whether tri-diagonal blocks are computed
     logical :: tTridiagonal = .true.
 
-  end type TElPh
+  end type TElPt
 
 
   !Structure for contact information in a transport calculation
@@ -194,8 +266,15 @@ module dftbp_transport_negfvars
     !> Buttiker Probe for dephasing
     type(Telph), allocatable :: bp
 
+    !> Buttiker Probe for dephasing
+    type(Telpt), allocatable :: elpt(:)
+
     !> Specify which integration type for current
     integer :: integration = integration_type%trapezoidal
+
+    !> Whether k -> -k symmetry is used (k-mesh reduced by inversion).
+    !> Global for all interactions: DFTB+ generates either the full or the reduced k-mesh
+    logical :: tKSymmetry = .false.
 
   end type TNEGFTunDos
 
@@ -460,6 +539,7 @@ contains
     gOUT%writeLDOS = gIN%writeLDOS
     gOUT%writeTUNN = gIN%writeTUNN
     gOUT%broadeningDelta = gIN%broadeningDelta
+    gOUT%tKSymmetry = gIN%tKSymmetry
 
     ! copy tundos%elph
     if (allocated(gIN%elph)) then
